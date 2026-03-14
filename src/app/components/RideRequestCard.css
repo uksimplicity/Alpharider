@@ -1,0 +1,164 @@
+.ride-request-page {
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 24px;
+}
+
+.ride-card {
+  width: 95%;
+  max-width: 320px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 14px 16px 18px;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #222222;
+}
+
+.ride-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ride-card__profile {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ride-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.ride-card__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.ride-card__name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ride-card__rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #7a7a7a;
+}
+
+.ride-card__star {
+  font-size: 13px;
+  color: #b79c5a;
+}
+
+.ride-card__actions {
+  display: flex;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.ride-card__icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #5a3fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ride-card__icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ride-card__icon-btn:hover {
+  opacity: 0.8;
+}
+
+.ride-card__icon-btn:active {
+  transform: scale(0.95);
+}
+
+.ride-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 2px;
+}
+
+.ride-card__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #444444;
+}
+
+.ride-card__icon {
+  width: 18px;
+  height: 18px;
+  color: #5a3fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ride-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ride-card__buttons {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.ride-card__btn {
+  flex: 1;
+  height: 42px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ride-card__btn--decline {
+  background: #ffffff;
+  color: #5a3fff;
+  border: 1.5px solid #5a3fff;
+}
+
+.ride-card__btn--accept {
+  background: #5a3fff;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 8px 14px rgba(90, 63, 255, 0.28);
+}
+
+.ride-card__btn:hover {
+  filter: brightness(0.98);
+}
+
+.ride-card__btn:active {
+  transform: scale(0.98);
+}

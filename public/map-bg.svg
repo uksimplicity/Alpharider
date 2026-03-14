@@ -1,0 +1,36 @@
+<svg width="800" height="1200" viewBox="0 0 800 1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="land" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5d7d9"/>
+      <stop offset="1" stop-color="#f1cfd4"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f6a04a"/>
+      <stop offset="1" stop-color="#f2c94c"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1200" fill="url(#land)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1">
+    <path d="M30 150L220 80L420 130L680 90" />
+    <path d="M60 260L220 240L420 280L720 240" />
+    <path d="M40 380L200 360L450 420L740 380" />
+    <path d="M80 520L260 480L460 540L720 520" />
+    <path d="M20 660L240 620L460 680L760 640" />
+    <path d="M60 800L260 760L480 820L760 780" />
+    <path d="M40 940L240 900L460 960L760 920" />
+    <path d="M90 1080L300 1040L520 1100L760 1060" />
+  </g>
+  <g fill="none" stroke="url(#road)" stroke-width="6" stroke-linecap="round" stroke-opacity="0.9">
+    <path d="M120 0L140 180L160 320L200 520L240 720L260 920L300 1200" />
+    <path d="M0 360L180 420L360 460L520 520L800 600" />
+    <path d="M80 980L260 900L380 820L520 760L720 740" />
+  </g>
+  <g fill="none" stroke="#f47e65" stroke-width="3" stroke-linecap="round" stroke-opacity="0.9">
+    <path d="M520 0L500 160L480 300L520 460L560 640L540 820L520 1200" />
+  </g>
+  <g fill="#ffffff" fill-opacity="0.7" font-family="Segoe UI, sans-serif" font-size="20">
+    <text x="70" y="700">Ibadan</text>
+    <text x="420" y="260">Balogun</text>
+    <text x="430" y="430">Akobo</text>
+  </g>
+</svg>
