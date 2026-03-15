@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getPendingDeliveries } from "@/lib/deliveries-api";
 
 function formatDate(value: Date) {
   return value.toLocaleDateString("en-GB", {
@@ -16,17 +17,91 @@ export default function DashboardPage() {
   const currentDate = formatDate(new Date());
   const router = useRouter();
   const [showBalance, setShowBalance] = useState(false);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
+  const [requestError, setRequestError] = useState("");
+  const [rideRequests, setRideRequests] = useState<
+    Array<{
+      id: string;
+      from: string;
+      to: string;
+    }>
+  >([]);
   const balance = "NGN 42,800";
-  const rideRequests = [
-    {
-      from: "Gbagi market, Iwo road",
-      to: "Tulip Pharmacy, Oluwo",
-    },
-    {
-      from: "Gbagi market, Iwo road",
-      to: "Ajia junction",
-    },
-  ];
+
+  useEffect(() => {
+    const loadPendingDeliveries = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      if (!token) {
+        setRequestError("Please log in to load ride requests.");
+        setIsLoadingRequests(false);
+        return;
+      }
+
+      setIsLoadingRequests(true);
+      setRequestError("");
+
+      try {
+        const deliveries = await getPendingDeliveries(token, 20);
+        const mapped = deliveries.map((item, index) => ({
+          id: item.id ?? item.delivery_id ?? item.order_id ?? `delivery-${index}`,
+          from: item.pickup_address ?? "Pickup address unavailable",
+          to: item.dropoff_address ?? "Dropoff address unavailable",
+        }));
+        setRideRequests(mapped);
+      } catch (error) {
+        setRequestError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load pending rides right now."
+        );
+      } finally {
+        setIsLoadingRequests(false);
+      }
+    };
+
+    void loadPendingDeliveries();
+  }, []);
+
+  const rideRequestContent = useMemo(() => {
+    if (isLoadingRequests) {
+      return <p className="helper">Loading ride requests...</p>;
+    }
+
+    if (requestError) {
+      return (
+        <p className="helper danger" role="alert">
+          {requestError}
+        </p>
+      );
+    }
+
+    if (rideRequests.length === 0) {
+      return <p className="helper">No pending ride requests for now.</p>;
+    }
+
+    return (
+      <div className="rider-request-list">
+        {rideRequests.map((request) => (
+          <button
+            className="rider-request-card rider-request-action"
+            type="button"
+            onClick={() => router.push(`/delivery/request?id=${request.id}`)}
+            key={request.id}
+          >
+            <div className="route-line">
+              <span className="route-dot" />
+              <span>{request.from}</span>
+            </div>
+            <div className="route-line">
+              <span className="route-pin" />
+              <span>{request.to}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }, [isLoadingRequests, requestError, rideRequests, router]);
+
   const scheduledRide = {
     from: "Kinikan complex, Oluwo",
     to: "Ventura hall, Samonda",
@@ -104,25 +179,7 @@ export default function DashboardPage() {
 
           <section className="rider-section">
             <h2>Ride Request</h2>
-            <div className="rider-request-list">
-              {rideRequests.map((request, index) => (
-                <button
-                  className="rider-request-card rider-request-action"
-                  type="button"
-                  onClick={() => router.push("/delivery/request")}
-                  key={`${request.from}-${index}`}
-                >
-                  <div className="route-line">
-                    <span className="route-dot" />
-                    <span>{request.from}</span>
-                  </div>
-                  <div className="route-line">
-                    <span className="route-pin" />
-                    <span>{request.to}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            {rideRequestContent}
           </section>
 
           <section className="rider-section">

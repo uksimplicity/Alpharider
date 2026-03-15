@@ -1,9 +1,61 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import {
+  broadcastDeliveryLocation,
+  updateDeliveryStatus,
+} from "@/lib/deliveries-api";
 
 export default function DestinationArrivedPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isEnding, setIsEnding] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleEndTrip = async () => {
+    if (isEnding) return;
+
+    const token = localStorage.getItem("alpharider_token");
+    const deliveryId =
+      searchParams.get("id") ??
+      localStorage.getItem("alpharider_active_delivery_id") ??
+      "";
+
+    if (!token || !deliveryId) {
+      setErrorMessage("Missing token or delivery ID.");
+      return;
+    }
+
+    setIsEnding(true);
+    setErrorMessage("");
+
+    try {
+      await updateDeliveryStatus(token, deliveryId, "completed");
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            void broadcastDeliveryLocation(token, deliveryId, {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            // Continue even if geolocation fails.
+          }
+        );
+      }
+
+      router.push("/delivery/ride-completed");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to end trip."
+      );
+    } finally {
+      setIsEnding(false);
+    }
+  };
 
   return (
     <div className="auth-page delivery-destination-page">
@@ -35,10 +87,16 @@ export default function DestinationArrivedPage() {
             <button
               className="sheet-btn end-trip-cta"
               type="button"
-              onClick={() => router.push("/delivery/ride-completed")}
+              onClick={handleEndTrip}
+              disabled={isEnding}
             >
-              End Trip
+              {isEnding ? "Ending..." : "End Trip"}
             </button>
+            {errorMessage ? (
+              <p className="helper danger" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
           </section>
         </div>
       </div>

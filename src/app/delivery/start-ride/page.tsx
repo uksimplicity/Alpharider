@@ -1,9 +1,61 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import {
+  broadcastDeliveryLocation,
+  updateDeliveryStatus,
+} from "@/lib/deliveries-api";
 
 export default function StartRidePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isStarting, setIsStarting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleStartRide = async () => {
+    if (isStarting) return;
+
+    const token = localStorage.getItem("alpharider_token");
+    const deliveryId =
+      searchParams.get("id") ??
+      localStorage.getItem("alpharider_active_delivery_id") ??
+      "";
+
+    if (!token || !deliveryId) {
+      setErrorMessage("Missing token or delivery ID.");
+      return;
+    }
+
+    setIsStarting(true);
+    setErrorMessage("");
+
+    try {
+      await updateDeliveryStatus(token, deliveryId, "in_progress");
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            void broadcastDeliveryLocation(token, deliveryId, {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            // Continue even if geolocation fails.
+          }
+        );
+      }
+
+      router.push(`/delivery/destination-arrived?id=${deliveryId}`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to start ride."
+      );
+    } finally {
+      setIsStarting(false);
+    }
+  };
 
   return (
     <div className="auth-page delivery-start-page">
@@ -35,10 +87,16 @@ export default function StartRidePage() {
             <button
               className="sheet-btn primary start-ride-cta"
               type="button"
-              onClick={() => router.push("/delivery/destination-arrived")}
+              onClick={handleStartRide}
+              disabled={isStarting}
             >
-              Start Ride
+              {isStarting ? "Starting..." : "Start Ride"}
             </button>
+            {errorMessage ? (
+              <p className="helper danger" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
           </section>
         </div>
       </div>

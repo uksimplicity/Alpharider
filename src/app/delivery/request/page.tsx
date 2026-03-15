@@ -1,14 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { acceptDelivery, getDeliveryById } from "@/lib/deliveries-api";
 
 export default function DeliveryRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [deliveryId, setDeliveryId] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("Loading pickup...");
+  const [dropoffAddress, setDropoffAddress] = useState("Loading dropoff...");
+  const [pickupContact, setPickupContact] = useState("+2348000000000");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const loadDeliveryDetails = async () => {
+      const idFromUrl = searchParams.get("id");
+      if (!idFromUrl) {
+        setErrorMessage("Delivery ID is missing.");
+        setIsLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem("alpharider_token");
+      if (!token) {
+        setErrorMessage("Please log in to view delivery details.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+      setDeliveryId(idFromUrl);
+
+      try {
+        const delivery = await getDeliveryById(token, idFromUrl);
+        setPickupAddress(delivery.pickup_address ?? "Pickup address unavailable");
+        setDropoffAddress(delivery.dropoff_address ?? "Dropoff address unavailable");
+        setPickupContact(delivery.pickup_contact ?? "+2348000000000");
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load delivery details right now."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadDeliveryDetails();
+  }, [searchParams]);
 
   const handleCall = () => {
-    window.location.href = "tel:+2348000000000";
+    window.location.href = `tel:${pickupContact}`;
   };
 
   const handleMessage = () => {
@@ -19,9 +67,35 @@ export default function DeliveryRequestPage() {
     setShowDeclineModal(true);
   };
 
-  const handleAccept = () => {
-    router.push("/delivery/accepted");
+  const handleAccept = async () => {
+    if (!deliveryId || isAccepting) return;
+
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) {
+      setErrorMessage("Please log in to accept delivery requests.");
+      return;
+    }
+
+    setIsAccepting(true);
+    setErrorMessage("");
+
+    try {
+      await acceptDelivery(token, deliveryId);
+      localStorage.setItem("alpharider_active_delivery_id", deliveryId);
+      router.push(`/delivery/accepted?id=${deliveryId}`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to accept delivery."
+      );
+    } finally {
+      setIsAccepting(false);
+    }
   };
+
+  const isReadyForActions = useMemo(
+    () => !isLoading && !errorMessage && Boolean(deliveryId),
+    [deliveryId, errorMessage, isLoading]
+  );
 
   return (
     <div className="auth-page delivery-request-page">
@@ -97,11 +171,11 @@ export default function DeliveryRequestPage() {
             <div className="sheet-route">
               <div className="route-line">
                 <span className="route-dot" />
-                <span>Gbagi market, Iwo road</span>
+                <span>{pickupAddress}</span>
               </div>
               <div className="route-line">
                 <span className="route-pin" />
-                <span>Tulip Pharmacy, Oluwo</span>
+                <span>{dropoffAddress}</span>
               </div>
               <div className="route-line">
                 <span className="route-clock" />
@@ -117,6 +191,7 @@ export default function DeliveryRequestPage() {
               <button
                 className="sheet-btn outline"
                 type="button"
+                disabled={!isReadyForActions}
                 onClick={handleDecline}
               >
                 Decline
@@ -124,11 +199,18 @@ export default function DeliveryRequestPage() {
               <button
                 className="sheet-btn primary"
                 type="button"
+                disabled={!isReadyForActions || isAccepting}
                 onClick={handleAccept}
               >
-                Accept
+                {isAccepting ? "Accepting..." : "Accept"}
               </button>
             </div>
+            {isLoading ? <p className="helper">Loading delivery details...</p> : null}
+            {errorMessage ? (
+              <p className="helper danger" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
           </section>
         </div>
       </div>

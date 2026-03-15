@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signupUser } from "@/lib/auth-api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [userCategory, setUserCategory] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const criteria = useMemo(() => {
     const hasLetter = /[A-Za-z]/.test(password);
@@ -41,6 +44,46 @@ export default function SignupPage() {
     userCategory &&
     acceptedTerms;
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSubmit || isLoading) return;
+
+    setIsLoading(true);
+    setErrorMessage("");
+
+    try {
+      const [firstNameRaw, ...lastNameParts] = name.trim().split(/\s+/);
+      const firstName = firstNameRaw ?? "";
+      const lastName = lastNameParts.join(" ") || "User";
+      const role = userCategory === "rider" ? "rider" : "rider_app_customer";
+
+      const response = await signupUser({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        role,
+      });
+
+      localStorage.setItem("alpharider_pending_email", email);
+      localStorage.setItem("alpharider_pending_phone", phone);
+
+      if (response.requiresVerification === false) {
+        router.push("/auth/login");
+        return;
+      }
+
+      router.push("/auth/verify");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to sign up right now."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -52,7 +95,7 @@ export default function SignupPage() {
           Sign up to start enjoying stress-free rides
         </p>
 
-        <form className="auth-form">
+        <form className="auth-form" onSubmit={handleSubmit}>
           <label>
             Your Name
             <div className="input-group">
@@ -184,17 +227,17 @@ export default function SignupPage() {
           </label>
 
           <button
-            className={`auth-submit ${canSubmit ? "active" : ""}`}
-            type="button"
-            disabled={!canSubmit}
-            onClick={() => {
-              if (canSubmit) {
-                router.push("/auth/verify");
-              }
-            }}
+            className={`auth-submit ${canSubmit && !isLoading ? "active" : ""}`}
+            type="submit"
+            disabled={!canSubmit || isLoading}
           >
-            Sign Up
+            {isLoading ? "Signing up..." : "Sign Up"}
           </button>
+          {errorMessage ? (
+            <span className="helper danger" role="alert">
+              {errorMessage}
+            </span>
+          ) : null}
         </form>
 
         <p className="auth-footer">
