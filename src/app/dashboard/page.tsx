@@ -32,7 +32,7 @@ export default function DashboardPage() {
     const loadPendingDeliveries = async () => {
       const token = localStorage.getItem("alpharider_token");
       if (!token) {
-        setRequestError("Please log in to load ride requests.");
+        setRequestError("YOUR ACCOUNT IS NOT VERIFIED YET");
         setIsLoadingRequests(false);
         return;
       }
