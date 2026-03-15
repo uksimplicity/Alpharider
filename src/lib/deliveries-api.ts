@@ -19,14 +19,14 @@ type DeliveryListResponse = {
   items?: DeliveryRecord[];
 } & Record<string, unknown>;
 
-const readDeliveryList = (response: DeliveryListResponse): DeliveryRecord[] => {
+const readDeliveryList = (
+  response: DeliveryListResponse | DeliveryRecord[]
+): DeliveryRecord[] => {
+  if (Array.isArray(response)) return response;
+
   if (Array.isArray(response.data)) return response.data;
   if (Array.isArray(response.deliveries)) return response.deliveries;
   if (Array.isArray(response.items)) return response.items;
-
-  if (Array.isArray(response as unknown[])) {
-    return response as DeliveryRecord[];
-  }
 
   return [];
 };
@@ -45,7 +45,7 @@ const buildPathWithQuery = (path: string, query?: Record<string, string | number
 };
 
 export async function getPendingDeliveries(token: string, limit = 20) {
-  const response = await requestJson<DeliveryListResponse>(
+  const response = await requestJson<DeliveryListResponse | DeliveryRecord[]>(
     buildPathWithQuery("/deliveries/pending", { limit }),
     {
       method: "GET",
@@ -56,10 +56,13 @@ export async function getPendingDeliveries(token: string, limit = 20) {
 }
 
 export async function getMyDeliveries(token: string) {
-  const response = await requestJson<DeliveryListResponse>("/deliveries/my", {
-    method: "GET",
-    headers: withAuthHeaders(token),
-  });
+  const response = await requestJson<DeliveryListResponse | DeliveryRecord[]>(
+    "/deliveries/my",
+    {
+      method: "GET",
+      headers: withAuthHeaders(token),
+    }
+  );
   return readDeliveryList(response);
 }
 

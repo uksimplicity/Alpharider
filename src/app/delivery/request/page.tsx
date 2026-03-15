@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { acceptDelivery, getDeliveryById } from "@/lib/deliveries-api";
 
 export default function DeliveryRequestPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [deliveryId, setDeliveryId] = useState("");
   const [pickupAddress, setPickupAddress] = useState("Loading pickup...");
@@ -18,7 +17,7 @@ export default function DeliveryRequestPage() {
 
   useEffect(() => {
     const loadDeliveryDetails = async () => {
-      const idFromUrl = searchParams.get("id");
+      const idFromUrl = new URLSearchParams(window.location.search).get("id");
       if (!idFromUrl) {
         setErrorMessage("Delivery ID is missing.");
         setIsLoading(false);
@@ -53,7 +52,7 @@ export default function DeliveryRequestPage() {
     };
 
     void loadDeliveryDetails();
-  }, [searchParams]);
+  }, []);
 
   const handleCall = () => {
     window.location.href = `tel:${pickupContact}`;

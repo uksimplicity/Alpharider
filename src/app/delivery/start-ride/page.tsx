@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   broadcastDeliveryLocation,
@@ -9,7 +9,6 @@ import {
 
 export default function StartRidePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isStarting, setIsStarting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -17,10 +16,8 @@ export default function StartRidePage() {
     if (isStarting) return;
 
     const token = localStorage.getItem("alpharider_token");
-    const deliveryId =
-      searchParams.get("id") ??
-      localStorage.getItem("alpharider_active_delivery_id") ??
-      "";
+    const idFromUrl = new URLSearchParams(window.location.search).get("id");
+    const deliveryId = idFromUrl ?? localStorage.getItem("alpharider_active_delivery_id") ?? "";
 
     if (!token || !deliveryId) {
       setErrorMessage("Missing token or delivery ID.");
