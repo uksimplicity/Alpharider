@@ -4,11 +4,9 @@ import { useRouter } from "next/navigation";
 
 const profileLinks = [
   { label: "Edit Profile", route: "/user/edit-profile" },
-  { label: "My Rides" },
   { label: "History", route: "/user/delivery-history-pending" },
   { label: "Settings", route: "/user/settings" },
-  { label: "Rate App" },
-  { label: "Share App" },
+  { label: "Logout", route: "/auth/login" },
 ];
 
 export default function CustomerDashboardPage() {
