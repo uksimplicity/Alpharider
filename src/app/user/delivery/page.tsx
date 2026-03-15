@@ -1,20 +1,135 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getMyDeliveries, type DeliveryRecord } from "@/lib/deliveries-api";
 
-const deliveries = [
-  { id: "MAY23230024", status: "Transit", tone: "blue" },
-  { id: "MAY23230024", status: "Pending", tone: "amber" },
-];
+type UiDelivery = {
+  id: string;
+  status: string;
+  tone: "blue" | "amber" | "green" | "red";
+  destination: string;
+  time: string;
+};
 
-const recentDeliveries = [
-  { id: "MAY23230024", status: "Delivered", tone: "green" },
-  { id: "MAY23230024", status: "Cancelled", tone: "red" },
-  { id: "MAY23230024", status: "Delivered", tone: "green" },
-];
+const formatStatusTone = (status: string): UiDelivery["tone"] => {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("deliver") || normalized.includes("complete")) {
+    return "green";
+  }
+  if (normalized.includes("cancel") || normalized.includes("declin")) {
+    return "red";
+  }
+  if (normalized.includes("pending") || normalized.includes("assign")) {
+    return "amber";
+  }
+  return "blue";
+};
+
+const normalizeDelivery = (item: DeliveryRecord, index: number): UiDelivery => {
+  const status = item.status ?? "Transit";
+  return {
+    id: item.id ?? item.delivery_id ?? item.order_id ?? `DEL-${index + 1}`,
+    status,
+    tone: formatStatusTone(status),
+    destination: item.dropoff_address ?? "Destination",
+    time: item.updated_at ?? item.created_at ?? "Now",
+  };
+};
+
+const isPendingStatus = (status: string) => {
+  const normalized = status.toLowerCase();
+  return (
+    normalized.includes("pending") ||
+    normalized.includes("transit") ||
+    normalized.includes("assigned") ||
+    normalized.includes("accepted") ||
+    normalized.includes("in_progress")
+  );
+};
 
 export default function UserDeliveryPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [items, setItems] = useState<UiDelivery[]>([]);
+
+  useEffect(() => {
+    const loadDeliveries = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      if (!token) {
+        setErrorMessage("Please log in to view your deliveries.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const deliveries = await getMyDeliveries(token);
+        setItems(deliveries.map(normalizeDelivery));
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load deliveries right now."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadDeliveries();
+  }, []);
+
+  const pendingDeliveries = useMemo(
+    () => items.filter((item) => isPendingStatus(item.status)),
+    [items]
+  );
+
+  const recentDeliveries = useMemo(
+    () => items.filter((item) => !isPendingStatus(item.status)),
+    [items]
+  );
+
+  const renderList = (list: UiDelivery[]) => {
+    if (isLoading) {
+      return <p className="helper">Loading deliveries...</p>;
+    }
+
+    if (errorMessage) {
+      return (
+        <p className="helper danger" role="alert">
+          {errorMessage}
+        </p>
+      );
+    }
+
+    if (list.length === 0) {
+      return <p className="helper">No deliveries found.</p>;
+    }
+
+    return (
+      <div className="delivery-list user-delivery-list">
+        {list.map((delivery) => (
+          <div className="delivery-item" key={delivery.id}>
+            <div className="delivery-thumb">
+              <img src="/office-delivery.svg" alt="Package" />
+            </div>
+            <div className="delivery-info">
+              <p className="delivery-id">{delivery.id}</p>
+              <p className="delivery-destination">{delivery.destination}</p>
+            </div>
+            <div className="delivery-meta">
+              <span className={`status-pill ${delivery.tone}`}>{delivery.status}</span>
+              <span className="delivery-time">{delivery.time}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="auth-page user-delivery-page">
@@ -63,48 +178,12 @@ export default function UserDeliveryPage() {
 
         <section className="user-section">
           <h2>Pending Delivery</h2>
-          <div className="delivery-list user-delivery-list">
-            {deliveries.map((delivery, index) => (
-              <div className="delivery-item" key={`${delivery.id}-${index}`}>
-                <div className="delivery-thumb">
-                  <img src="/images/parcel.png" alt="Package" />
-                </div>
-                <div className="delivery-info">
-                  <p className="delivery-id">{delivery.id}</p>
-                  <p className="delivery-destination">Destination</p>
-                </div>
-                <div className="delivery-meta">
-                  <span className={`status-pill ${delivery.tone}`}>
-                    {delivery.status}
-                  </span>
-                  <span className="delivery-time">23/05 12:59pm</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {renderList(pendingDeliveries)}
         </section>
 
         <section className="user-section">
           <h2>Recent Delivery</h2>
-          <div className="delivery-list user-delivery-list">
-            {recentDeliveries.map((delivery, index) => (
-              <div className="delivery-item" key={`${delivery.id}-${index}`}>
-                <div className="delivery-thumb">
-                  <img src="/images/parcel.png" alt="Package" />
-                </div>
-                <div className="delivery-info">
-                  <p className="delivery-id">{delivery.id}</p>
-                  <p className="delivery-destination">Destination</p>
-                </div>
-                <div className="delivery-meta">
-                  <span className={`status-pill ${delivery.tone}`}>
-                    {delivery.status}
-                  </span>
-                  <span className="delivery-time">23/05 12:59pm</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {renderList(recentDeliveries)}
         </section>
       </div>
     </div>

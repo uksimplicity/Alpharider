@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function UploadPicturePreviewPage() {
   const router = useRouter();
+  const [imageUrl] = useState(() => {
+    if (typeof window === "undefined") {
+      return "/office-delivery.svg";
+    }
+    return (
+      localStorage.getItem("alpharider_package_image_url") ??
+      "/office-delivery.svg"
+    );
+  });
 
   return (
     <div className="auth-page user-delivery-page">
@@ -33,7 +43,7 @@ export default function UploadPicturePreviewPage() {
         <h1 className="user-page-title">Upload Picture</h1>
 
         <div className="upload-preview">
-          <img src="/images/parcel.png" alt="Package" />
+          <img src={imageUrl} alt="Package" />
         </div>
 
         <div className="upload-actions">
@@ -47,7 +57,7 @@ export default function UploadPicturePreviewPage() {
           <button
             className="user-secondary-link"
             type="button"
-            onClick={() => router.back()}
+            onClick={() => router.push("/user/upload-picture")}
           >
             Retake
           </button>

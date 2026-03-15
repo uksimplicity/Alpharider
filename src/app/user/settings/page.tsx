@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { updateUserFcmToken } from "@/lib/user-api";
 
 const settingsItems = [
   { label: "Change Password", route: "/user/change-password" },
@@ -11,6 +13,37 @@ const settingsItems = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const [fcmToken, setFcmToken] = useState("");
+  const [isSavingFcm, setIsSavingFcm] = useState(false);
+  const [fcmMessage, setFcmMessage] = useState("");
+  const [fcmError, setFcmError] = useState("");
+
+  const handleSaveFcm = async () => {
+    if (!fcmToken.trim() || isSavingFcm) return;
+
+    const authToken = localStorage.getItem("alpharider_token");
+    if (!authToken) {
+      setFcmError("Please log in first.");
+      return;
+    }
+
+    setIsSavingFcm(true);
+    setFcmError("");
+    setFcmMessage("");
+
+    try {
+      await updateUserFcmToken(authToken, fcmToken.trim());
+      setFcmMessage("FCM token updated.");
+    } catch (error) {
+      setFcmError(
+        error instanceof Error
+          ? error.message
+          : "Unable to update FCM token right now."
+      );
+    } finally {
+      setIsSavingFcm(false);
+    }
+  };
 
   return (
     <div className="auth-page user-dashboard-page">
@@ -57,6 +90,34 @@ export default function SettingsPage() {
           <button className="settings-item danger" type="button">
             Delete Account
           </button>
+        </div>
+
+        <div className="edit-form">
+          <label>
+            <span>FCM Token</span>
+            <div className="input-group">
+              <input
+                type="text"
+                placeholder="Paste FCM token"
+                value={fcmToken}
+                onChange={(event) => setFcmToken(event.target.value)}
+              />
+            </div>
+          </label>
+          <button
+            className="user-primary-button form-cta"
+            type="button"
+            onClick={handleSaveFcm}
+            disabled={!fcmToken.trim() || isSavingFcm}
+          >
+            {isSavingFcm ? "Saving..." : "Update FCM Token"}
+          </button>
+          {fcmError ? (
+            <p className="helper danger" role="alert">
+              {fcmError}
+            </p>
+          ) : null}
+          {fcmMessage ? <p className="helper met">{fcmMessage}</p> : null}
         </div>
       </div>
     </div>

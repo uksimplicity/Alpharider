@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { loginUser } from "@/lib/auth-api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,10 +11,40 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userCategory, setUserCategory] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const isEmailValid = /\S+@\S+\.\S+/.test(email);
   const canSubmit =
     isEmailValid && password.trim().length > 0 && userCategory.length > 0;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSubmit || isLoading) return;
+
+    setIsLoading(true);
+    setErrorMessage("");
+
+    try {
+      const response = await loginUser({
+        email,
+        password,
+      });
+
+      const token = response.token ?? response.accessToken ?? response.access_token;
+      if (token) {
+        localStorage.setItem("alpharider_token", token);
+      }
+
+      router.push(userCategory === "user" ? "/user/dashboard" : "/dashboard");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to log in right now."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="auth-page">
@@ -26,7 +57,7 @@ export default function LoginPage() {
           Log in and pick up right where you left
         </p>
 
-        <form className="auth-form">
+        <form className="auth-form" onSubmit={handleSubmit}>
           <label>
             Email
             <div className="input-group">
@@ -81,23 +112,21 @@ export default function LoginPage() {
           </label>
 
           <div className="auth-meta">
-            <Link href="#">Forgot Password?</Link>
+            <Link href="/auth/forgot-password">Forgot Password?</Link>
           </div>
 
           <button
-            className={`auth-submit ${canSubmit ? "active" : ""}`}
-            type="button"
-            disabled={!canSubmit}
-            onClick={() => {
-              if (canSubmit) {
-                router.push(
-                  userCategory === "user" ? "/user/dashboard" : "/dashboard"
-                );
-              }
-            }}
+            className={`auth-submit ${canSubmit && !isLoading ? "active" : ""}`}
+            type="submit"
+            disabled={!canSubmit || isLoading}
           >
-            Log In
+            {isLoading ? "Logging in..." : "Log In"}
           </button>
+          {errorMessage ? (
+            <span className="helper danger" role="alert">
+              {errorMessage}
+            </span>
+          ) : null}
         </form>
 
         <p className="auth-footer">

@@ -1959,6 +1959,15 @@ a {
 .auth-meta a {
   color: #6b7280;
 }
+.text-link-button {
+  border: none;
+  background: transparent;
+  color: #013cc3;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
 
 .verify-page {
   min-height: 100vh;

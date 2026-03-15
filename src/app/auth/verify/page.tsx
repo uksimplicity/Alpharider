@@ -1,14 +1,35 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { resendOtp, verifyOtp, verifyPhoneOtp } from "@/lib/auth-api";
 
 export default function VerifyPage() {
   const router = useRouter();
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [secondsLeft, setSecondsLeft] = useState(30);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingPhone, setPendingPhone] = useState("");
+  const [verificationMode, setVerificationMode] = useState<"email" | "phone">(
+    "email"
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+
+  useEffect(() => {
+    const savedPendingEmail = localStorage.getItem("alpharider_pending_email");
+    const savedPendingPhone = localStorage.getItem("alpharider_pending_phone");
+    if (savedPendingEmail) {
+      setPendingEmail(savedPendingEmail);
+    }
+    if (savedPendingPhone) {
+      setPendingPhone(savedPendingPhone);
+      setVerificationMode("phone");
+    }
+  }, []);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -37,7 +58,7 @@ export default function VerifyPage() {
   };
 
   const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLInputElement>,
     index: number
   ) => {
     if (event.key === "Backspace" && !otp[index] && index > 0) {
@@ -59,6 +80,78 @@ export default function VerifyPage() {
   const canVerify = otp.every((digit) => digit !== "");
   const canResend = secondsLeft === 0;
 
+  const verificationIdentity =
+    verificationMode === "phone"
+      ? pendingPhone || pendingEmail
+      : pendingEmail || pendingPhone;
+
+  const handleVerify = async () => {
+    if (!canVerify || isSubmitting) return;
+    if (!verificationIdentity) {
+      setErrorMessage("Missing verification identity. Please sign up again.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+    setStatusMessage("");
+
+    try {
+      if (verificationMode === "phone") {
+        await verifyPhoneOtp({
+          otp: otp.join(""),
+          email: verificationIdentity,
+        });
+      } else {
+        await verifyOtp({
+          otp: otp.join(""),
+          email: verificationIdentity,
+        });
+      }
+
+      localStorage.removeItem("alpharider_pending_email");
+      localStorage.removeItem("alpharider_pending_phone");
+      router.push("/auth/verified");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to verify OTP right now."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!canResend || isResending) return;
+    if (!verificationIdentity) {
+      setErrorMessage("Missing verification identity. Please sign up again.");
+      return;
+    }
+
+    setIsResending(true);
+    setErrorMessage("");
+    setStatusMessage("");
+
+    try {
+      await resendOtp({
+        email: verificationIdentity,
+        type: "resend_verification",
+      });
+      setSecondsLeft(30);
+      setStatusMessage("A new OTP has been sent.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to resend OTP right now."
+      );
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="verify-page">
       <div className="verify-card">
@@ -69,6 +162,23 @@ export default function VerifyPage() {
         <p className="auth-subtitle">
           Enter OTP sent to your email and phone number
         </p>
+
+        <div className="sheet-actions">
+          <button
+            className={`sheet-btn ${verificationMode === "email" ? "primary" : "outline"}`}
+            type="button"
+            onClick={() => setVerificationMode("email")}
+          >
+            Verify Email
+          </button>
+          <button
+            className={`sheet-btn ${verificationMode === "phone" ? "primary" : "outline"}`}
+            type="button"
+            onClick={() => setVerificationMode("phone")}
+          >
+            Verify Phone
+          </button>
+        </div>
 
         <div className="otp-row">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -93,29 +203,31 @@ export default function VerifyPage() {
         </div>
 
         <button
-          className={`auth-submit ${canVerify ? "active" : ""}`}
+          className={`auth-submit ${canVerify && !isSubmitting ? "active" : ""}`}
           type="button"
-          disabled={!canVerify}
-          onClick={() => {
-            if (!canVerify) return;
-            router.push("/auth/verified");
-          }}
+          disabled={!canVerify || isSubmitting}
+          onClick={handleVerify}
         >
-          Verify
+          {isSubmitting ? "Verifying..." : "Verify"}
         </button>
+        {errorMessage ? (
+          <span className="helper danger" role="alert">
+            {errorMessage}
+          </span>
+        ) : null}
+        {statusMessage ? <span className="helper met">{statusMessage}</span> : null}
 
         <p className="auth-footer">
           Didn’t get a code?{" "}
           <button
             type="button"
-            className={`resend ${canResend ? "active" : ""}`}
-            disabled={!canResend}
-            onClick={() => {
-              if (!canResend) return;
-              setSecondsLeft(30);
-            }}
+            className={`resend ${canResend && !isResending ? "active" : ""}`}
+            disabled={!canResend || isResending}
+            onClick={handleResend}
           >
-            Resend{canResend ? "" : ` (${secondsLeft}s)`}
+            {isResending
+              ? "Resending..."
+              : `Resend${canResend ? "" : ` (${secondsLeft}s)`}`}
           </button>
         </p>
       </div>
