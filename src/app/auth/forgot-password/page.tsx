@@ -26,6 +26,7 @@ export default function ForgotPasswordPage() {
       await forgotPassword(email);
       localStorage.setItem("alpharider_reset_email", email);
       setStatusMessage("OTP sent. Continue to reset your password.");
+      router.push("/auth/verify-reset");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -78,7 +79,7 @@ export default function ForgotPasswordPage() {
           <button
             type="button"
             className="text-link-button"
-            onClick={() => router.push("/auth/reset-password")}
+            onClick={() => router.push("/auth/verify-reset")}
           >
             I have an OTP, reset now
           </button>
