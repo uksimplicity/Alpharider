@@ -35,6 +35,14 @@ export default function PackageInformationPage() {
       setErrorMessage("Please log in to create a delivery order.");
       return;
     }
+    const isVerified = localStorage.getItem("alpharider_is_verified") === "true";
+    if (!isVerified) {
+      setErrorMessage(
+        "Please verify your account before requesting a delivery."
+      );
+      router.push("/auth/verify");
+      return;
+    }
 
     setIsLoading(true);
     setErrorMessage("");

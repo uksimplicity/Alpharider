@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   broadcastDeliveryLocation,
+  getDeliveryById,
   updateDeliveryStatus,
 } from "@/lib/deliveries-api";
 
@@ -11,6 +12,28 @@ export default function StartRidePage() {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [destinationLabel, setDestinationLabel] = useState("Destination");
+
+  useEffect(() => {
+    const loadDelivery = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      const idFromUrl = new URLSearchParams(window.location.search).get("id");
+      const deliveryId =
+        idFromUrl ??
+        localStorage.getItem("alpharider_active_delivery_id") ??
+        "";
+      if (!token || !deliveryId) return;
+
+      try {
+        const delivery = await getDeliveryById(token, deliveryId);
+        setDestinationLabel(delivery.dropoff_address ?? "Destination");
+      } catch {
+        // Keep page usable even if delivery fetch fails.
+      }
+    };
+
+    void loadDelivery();
+  }, []);
 
   const handleStartRide = async () => {
     if (isStarting) return;
@@ -79,7 +102,7 @@ export default function StartRidePage() {
             <p className="sheet-title">15mins to destination</p>
             <div className="sheet-location">
               <span className="route-pin" aria-hidden="true" />
-              <span>Tulip Pharmacy, Oluwo</span>
+              <span>{destinationLabel}</span>
             </div>
             <button
               className="sheet-btn primary start-ride-cta"

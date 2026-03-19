@@ -1,9 +1,107 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getDeliveryById, updateDeliveryStatus } from "@/lib/deliveries-api";
+import { formatDeliveryStatusLabel } from "@/lib/delivery-status";
 
 export default function DeliveryDetailsPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [deliveryId, setDeliveryId] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("Pickup unavailable");
+  const [dropoffAddress, setDropoffAddress] = useState("Destination unavailable");
+  const [pickupContact, setPickupContact] = useState("");
+  const [dropoffContact, setDropoffContact] = useState("");
+  const [status, setStatus] = useState("pending");
+  const [updatedAt, setUpdatedAt] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  useEffect(() => {
+    const loadDetails = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      const idFromUrl = new URLSearchParams(window.location.search).get("id");
+      const activeId = localStorage.getItem("alpharider_active_delivery_id");
+      const id = idFromUrl ?? activeId ?? "";
+      setDeliveryId(id);
+
+      if (!token) {
+        setErrorMessage("Please log in to view delivery details.");
+        setIsLoading(false);
+        return;
+      }
+      if (!id) {
+        setErrorMessage("Delivery ID is missing.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+      try {
+        const delivery = await getDeliveryById(token, id);
+        setPickupAddress(delivery.pickup_address ?? "Pickup unavailable");
+        setDropoffAddress(delivery.dropoff_address ?? "Destination unavailable");
+        setPickupContact(delivery.pickup_contact ?? "");
+        setDropoffContact(delivery.dropoff_contact ?? "");
+        setStatus(delivery.status ?? "pending");
+        setUpdatedAt(delivery.updated_at ?? delivery.created_at ?? "");
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load delivery details right now."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadDetails();
+  }, []);
+
+  const statusMessage = useMemo(() => {
+    const normalized = status.toLowerCase();
+    if (normalized.includes("completed") || normalized.includes("delivered")) {
+      return "Your package has been delivered.";
+    }
+    if (normalized.includes("in_progress")) {
+      return "Your package is currently in transit.";
+    }
+    if (normalized.includes("accepted") || normalized.includes("assigned")) {
+      return "A rider has accepted your delivery.";
+    }
+    if (normalized.includes("cancel") || normalized.includes("declin")) {
+      return "This delivery is no longer active.";
+    }
+    return "Your package is awaiting pickup.";
+  }, [status]);
+
+  const handleCancelDelivery = async () => {
+    if (!deliveryId || isCancelling) return;
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) {
+      setErrorMessage("Please log in to cancel this delivery.");
+      return;
+    }
+
+    setIsCancelling(true);
+    setErrorMessage("");
+    try {
+      await updateDeliveryStatus(token, deliveryId, "cancelled");
+      setStatus("cancelled");
+      setUpdatedAt(new Date().toISOString());
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to cancel this delivery right now."
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <div className="auth-page user-delivery-page">
@@ -31,49 +129,55 @@ export default function DeliveryDetailsPage() {
         </header>
 
         <h1 className="details-title">Delivery Details</h1>
-        <p className="details-order">Order Number: MAY23230024</p>
+        <p className="details-order">
+          Order Number: {deliveryId || "Unavailable"}
+        </p>
 
         <div className="details-map" />
 
         <div className="details-progress">
-          <span>Pick up</span>
+          <span>{pickupAddress}</span>
           <div className="progress-line">
             <span className="progress-dot" />
             <span className="progress-dot" />
           </div>
-          <span>Completed</span>
+          <span>{dropoffAddress}</span>
         </div>
 
-        <p className="details-status">
-          Your package has not been picked up yet!
-        </p>
+        <p className="details-status">{statusMessage}</p>
+        {isLoading ? <p className="helper">Loading delivery details...</p> : null}
+        {errorMessage ? (
+          <p className="helper danger" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
 
         <div className="details-meta">
           <div>
-            <p>Today</p>
+            <p>{updatedAt ? new Date(updatedAt).toLocaleDateString() : "Today"}</p>
             <span>Date</span>
           </div>
           <div>
-            <p>Anytime</p>
+            <p>{formatDeliveryStatusLabel(status)}</p>
             <span>Time</span>
           </div>
           <div>
-            <p>N1,500</p>
+            <p>N/A</p>
             <span>Price</span>
           </div>
           <div>
-            <p>Wallet</p>
+            <p>{dropoffContact || "N/A"}</p>
             <span>Method</span>
           </div>
         </div>
 
         <div className="details-rider">
           <div className="details-rider-info">
-            <img src="/icons/user.svg" alt="Moses" />
+            <img src="/icons/user.svg" alt="Contact" />
             <div>
-              <p>Moses</p>
+              <p>{pickupContact || "Pickup Contact"}</p>
               <span>
-                <span className="rating-star">&#9733;</span> 4.8 (345)
+                {dropoffContact || "Dropoff contact unavailable"}
               </span>
             </div>
           </div>
@@ -81,7 +185,11 @@ export default function DeliveryDetailsPage() {
             className="details-call"
             type="button"
             aria-label="Call rider"
-            onClick={() => router.push("/user/delivery-completed")}
+            onClick={() => {
+              if (pickupContact) {
+                window.location.href = `tel:${pickupContact}`;
+              }
+            }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path
@@ -94,8 +202,13 @@ export default function DeliveryDetailsPage() {
           </button>
         </div>
 
-        <button className="user-secondary-button details-cancel" type="button">
-          Cancel
+        <button
+          className="user-secondary-button details-cancel"
+          type="button"
+          disabled={!deliveryId || isCancelling || status.toLowerCase().includes("cancel")}
+          onClick={handleCancelDelivery}
+        >
+          {isCancelling ? "Cancelling..." : "Cancel"}
         </button>
       </div>
     </div>

@@ -1,14 +1,84 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { extractDeliveryId, getMyDeliveries, type DeliveryRecord } from "@/lib/deliveries-api";
+import {
+  formatDeliveryStatusLabel,
+  isCompletedDeliveryStatus,
+} from "@/lib/delivery-status";
 
-const completedOrders = [
-  { id: "MAY23230024", status: "Completed", time: "22/05 12:59pm" },
-  { id: "MAY23230020", status: "Completed", time: "20/05 02:40pm" },
-];
+type HistoryItem = {
+  id: string;
+  status: string;
+  time: string;
+};
+
+const toHistoryItem = (item: DeliveryRecord, index: number): HistoryItem => ({
+  id: extractDeliveryId(item, `DEL-${index + 1}`),
+  status: formatDeliveryStatusLabel(item.status),
+  time: item.updated_at
+    ? new Date(item.updated_at).toLocaleString()
+    : item.created_at
+    ? new Date(item.created_at).toLocaleString()
+    : "Now",
+});
 
 export default function DeliveryHistoryCompletedPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [pageSize, setPageSize] = useState(5);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      if (!token) {
+        setErrorMessage("Please log in to view delivery history.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+      try {
+        const deliveries = await getMyDeliveries(token);
+        setItems(deliveries.map(toHistoryItem));
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load delivery history."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadHistory();
+  }, []);
+
+  const completedItems = useMemo(
+    () => items.filter((item) => isCompletedDeliveryStatus(item.status)),
+    [items]
+  );
+  const totalPages = Math.max(1, Math.ceil(completedItems.length / pageSize));
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return completedItems.slice(start, start + pageSize);
+  }, [completedItems, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <div className="auth-page user-dashboard-page">
@@ -51,15 +121,63 @@ export default function DeliveryHistoryCompletedPage() {
         </div>
 
         <div className="history-list">
-          {completedOrders.map((order) => (
-            <div className="history-item" key={order.id}>
+          {isLoading ? <p className="helper">Loading history...</p> : null}
+          {errorMessage ? (
+            <p className="helper danger" role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+          {!isLoading && !errorMessage && completedItems.length === 0 ? (
+            <p className="helper">No completed deliveries found.</p>
+          ) : null}
+          {paginatedItems.map((order) => (
+            <button
+              className="history-item"
+              key={order.id}
+              type="button"
+              onClick={() => router.push(`/user/delivery-details?id=${order.id}`)}
+            >
               <div>
                 <p>{order.id}</p>
                 <span>{order.time}</span>
               </div>
               <span className="status-pill green">{order.status}</span>
-            </div>
+            </button>
           ))}
+          {!isLoading && !errorMessage && completedItems.length > 0 ? (
+            <div className="history-controls">
+              <label>
+                <span>Limit</span>
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+              <div className="history-pagination">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Prev
+                </button>
+                <span>{`Page ${page} of ${totalPages}`}</span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() =>
+                    setPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -2,7 +2,8 @@ import { requestJson } from "./api";
 import { API_ENDPOINTS } from "./endpoints";
 
 type LoginPayload = {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
 };
 

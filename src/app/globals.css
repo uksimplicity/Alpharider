@@ -619,6 +619,19 @@ a {
   gap: 12px;
 }
 
+.rider-profile-menu-wrap {
+  position: relative;
+  justify-self: start;
+}
+
+.rider-avatar-trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 .rider-topbar::after {
   content: "";
   grid-column: 1 / -1;
@@ -636,6 +649,36 @@ a {
   padding: 6px;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.rider-profile-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 120px;
+  background: #ffffff;
+  border: 1px solid #dbe3f3;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  z-index: 30;
+}
+
+.rider-profile-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.rider-profile-menu-item:hover {
+  background: #eef4ff;
 }
 
 .rider-logo {
@@ -2499,6 +2542,16 @@ a {
   background: #f7f7f9;
   border-radius: 14px;
   padding: 10px 12px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.delivery-item:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
 }
 
 .delivery-thumb {
@@ -3066,11 +3119,16 @@ a {
 
 .edit-profile-card {
   gap: 16px;
+  height: auto;
+  min-height: 0;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding-bottom: 24px;
 }
 
 .edit-profile-hero {
   display: grid;
-  gap: 12px;
+  gap: 6px;
   justify-items: center;
 }
 
@@ -3082,16 +3140,9 @@ a {
   padding: 6px;
 }
 
-.edit-profile-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  width: 100%;
-}
-
 .edit-form {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .edit-form label {
@@ -3165,6 +3216,67 @@ a {
   background: #f7f7f9;
   border-radius: 12px;
   padding: 10px 12px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.history-item:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+.history-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.history-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.history-controls select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.history-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-pagination button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.history-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.history-pagination span {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .history-item p {

@@ -1,11 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+
+const fromEmailPrefix = (value: string) => {
+  const prefix = value.split("@")[0]?.trim();
+  if (!prefix) return "";
+  return `${prefix.charAt(0).toUpperCase()}${prefix.slice(1)}`;
+};
+
+const normalizeDisplayName = (value: string) => {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (/^\S+\s+User$/i.test(cleaned)) {
+    return cleaned.replace(/\s+User$/i, "");
+  }
+  return cleaned;
+};
+
+const readStoredDisplayName = () => {
+  if (typeof window === "undefined") return "";
+  const storedName = localStorage.getItem("alpharider_display_name");
+  if (storedName?.trim()) return normalizeDisplayName(storedName);
+
+  const storedUsername = localStorage.getItem("alpharider_username");
+  if (storedUsername?.trim()) return normalizeDisplayName(storedUsername);
+
+  const storedEmail = localStorage.getItem("alpharider_email");
+  return storedEmail ? fromEmailPrefix(storedEmail) : "";
+};
+
+const subscribeToStorage = (onStoreChange: () => void) => {
+  const handleStorage = () => onStoreChange();
+  window.addEventListener("storage", handleStorage);
+  return () => window.removeEventListener("storage", handleStorage);
+};
 
 export default function UserDashboardPage() {
   const router = useRouter();
   const [showBalance, setShowBalance] = useState(true);
+  const displayName = useSyncExternalStore(
+    subscribeToStorage,
+    readStoredDisplayName,
+    () => ""
+  );
+
   return (
     <div className="auth-page user-dashboard-page">
       <div className="auth-card user-dashboard-card">
@@ -16,7 +54,11 @@ export default function UserDashboardPage() {
             aria-label="Open profile"
             onClick={() => router.push("/user/customer-dashboard-4")}
           >
-            <img className="user-avatar" src="/icons/user.svg" alt="Oluwatobi" />
+            <img
+              className="user-avatar"
+              src="/icons/user.svg"
+              alt={displayName || "User"}
+            />
           </button>
           <img className="user-logo" src="/logo.png" alt="AlphaRide" />
           <button
@@ -37,7 +79,9 @@ export default function UserDashboardPage() {
           </button>
         </header>
 
-        <p className="user-greeting">Hello, Oluwatobi!</p>
+        <p className="user-greeting">
+          {displayName ? `Hello, ${displayName}!` : "Hello!"}
+        </p>
 
         <section className="user-balance">
           <p className="user-balance-label">

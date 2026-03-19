@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPendingDeliveries } from "@/lib/deliveries-api";
 import { getRiderProfile } from "@/lib/rider-api";
+import { clearAuthSession } from "@/lib/session";
 
 function formatDate(value: Date) {
   return value.toLocaleDateString("en-GB", {
@@ -28,10 +29,16 @@ const toDisplayName = (payload: unknown): string | null => {
     "";
   const directName =
     (typeof record.name === "string" && record.name.trim()) ||
+    (typeof record.username === "string" && record.username.trim()) ||
     (typeof record.full_name === "string" && record.full_name.trim()) ||
     "";
 
-  if (firstName || lastName) return `${firstName} ${lastName}`.trim();
+  if (firstName || lastName) {
+    if (firstName && /^user$/i.test(lastName)) {
+      return firstName;
+    }
+    return `${firstName} ${lastName}`.trim();
+  }
   if (directName) return directName;
 
   const nested = record.user ?? record.profile ?? record.data;
@@ -44,6 +51,20 @@ const fromEmailPrefix = (value: string) => {
   return `${prefix.charAt(0).toUpperCase()}${prefix.slice(1)}`;
 };
 
+const normalizeDisplayName = (value: string) => {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (/^\S+\s+User$/i.test(cleaned)) {
+    return cleaned.replace(/\s+User$/i, "");
+  }
+  return cleaned;
+};
+
+const isNotFoundError = (error: unknown) => {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("404") || message.includes("not found");
+};
+
 export default function DashboardPage() {
   const currentDate = formatDate(new Date());
   const router = useRouter();
@@ -51,6 +72,8 @@ export default function DashboardPage() {
   const [displayName, setDisplayName] = useState("");
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [requestError, setRequestError] = useState("");
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const [rideRequests, setRideRequests] = useState<
     Array<{
       id: string;
@@ -63,12 +86,17 @@ export default function DashboardPage() {
   useEffect(() => {
     const storedName = localStorage.getItem("alpharider_display_name");
     if (storedName?.trim()) {
-      setDisplayName(storedName.trim());
+      setDisplayName(normalizeDisplayName(storedName));
     } else {
-      const storedEmail = localStorage.getItem("alpharider_email");
-      const fallbackName = storedEmail ? fromEmailPrefix(storedEmail) : "";
-      if (fallbackName) {
-        setDisplayName(fallbackName);
+      const storedUsername = localStorage.getItem("alpharider_username");
+      if (storedUsername?.trim()) {
+        setDisplayName(normalizeDisplayName(storedUsername));
+      } else {
+        const storedEmail = localStorage.getItem("alpharider_email");
+        const fallbackName = storedEmail ? fromEmailPrefix(storedEmail) : "";
+        if (fallbackName) {
+          setDisplayName(fallbackName);
+        }
       }
     }
 
@@ -89,8 +117,9 @@ export default function DashboardPage() {
           const profile = await getRiderProfile(token);
           const profileName = toDisplayName(profile);
           if (profileName) {
-            setDisplayName(profileName);
-            localStorage.setItem("alpharider_display_name", profileName);
+            const normalizedName = normalizeDisplayName(profileName);
+            setDisplayName(normalizedName);
+            localStorage.setItem("alpharider_display_name", normalizedName);
           }
         } catch {
           // Keep dashboard usable even if profile endpoint is unavailable.
@@ -102,6 +131,11 @@ export default function DashboardPage() {
         }));
         setRideRequests(mapped);
       } catch (error) {
+        if (isNotFoundError(error)) {
+          setRideRequests([]);
+          setRequestError("");
+          return;
+        }
         setRequestError(
           error instanceof Error
             ? error.message
@@ -113,6 +147,29 @@ export default function DashboardPage() {
     };
 
     void loadPendingDeliveries();
+  }, []);
+
+  useEffect(() => {
+    const handleClickAway = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!profileMenuRef.current?.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickAway);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickAway);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   const rideRequestContent = useMemo(() => {
@@ -155,19 +212,42 @@ export default function DashboardPage() {
     );
   }, [isLoadingRequests, requestError, rideRequests, router]);
 
-  const scheduledRide = {
-    from: "Kinikan complex, Oluwo",
-    to: "Ventura hall, Samonda",
-    date: "Mon",
-    day: "25, May",
-    time: "12:00pm",
-  };
   return (
     <div className="auth-page rider-dashboard-page">
       <div className="auth-card rider-card rider-dashboard-card">
         <div className="rider-dashboard">
           <header className="rider-topbar">
-            <img className="rider-avatar" src="/icons/user.svg" alt={displayName} />
+            <div className="rider-profile-menu-wrap" ref={profileMenuRef}>
+              <button
+                className="rider-avatar-trigger"
+                type="button"
+                aria-label="Open profile menu"
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+              >
+                <img
+                  className="rider-avatar"
+                  src="/icons/user.svg"
+                  alt={displayName || "User"}
+                />
+              </button>
+              {isProfileMenuOpen ? (
+                <div className="rider-profile-menu" role="menu">
+                  <button
+                    className="rider-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      clearAuthSession();
+                      router.push("/auth/login");
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <img className="rider-logo" src="/logo.png" alt="AlphaRide" />
             <button
               className="rider-bell"
@@ -231,29 +311,13 @@ export default function DashboardPage() {
           </section>
 
           <section className="rider-section">
-            <h2>Ride Request</h2>
+            <h2>Delivery Request</h2>
             {rideRequestContent}
           </section>
 
           <section className="rider-section">
-            <h2>Scheduled Ride</h2>
-            <div className="rider-scheduled-card">
-              <div className="rider-scheduled-routes">
-                <div className="route-line">
-                  <span className="route-dot" />
-                  <span>{scheduledRide.from}</span>
-                </div>
-                <div className="route-line">
-                  <span className="route-pin" />
-                  <span>{scheduledRide.to}</span>
-                </div>
-              </div>
-              <div className="rider-scheduled-date">
-                <span>{scheduledRide.date}</span>
-                <strong>{scheduledRide.day}</strong>
-                <span>{scheduledRide.time}</span>
-              </div>
-            </div>
+            <h2>Scheduled Delivery</h2>
+            <p className="helper">No scheduled delivery for now.</p>
           </section>
         </div>
       </div>

@@ -22,14 +22,28 @@ const toDisplayName = (payload: unknown): string | null => {
     "";
   const directName =
     (typeof record.name === "string" && record.name.trim()) ||
+    (typeof record.username === "string" && record.username.trim()) ||
     (typeof record.full_name === "string" && record.full_name.trim()) ||
     "";
 
-  if (firstName || lastName) return `${firstName} ${lastName}`.trim();
+  if (firstName || lastName) {
+    if (firstName && /^user$/i.test(lastName)) {
+      return firstName;
+    }
+    return `${firstName} ${lastName}`.trim();
+  }
   if (directName) return directName;
 
   const nested = record.user ?? record.profile ?? record.data;
   return toDisplayName(nested);
+};
+
+const normalizeDisplayName = (value: string) => {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (/^\S+\s+User$/i.test(cleaned)) {
+    return cleaned.replace(/\s+User$/i, "");
+  }
+  return cleaned;
 };
 
 const toAccessToken = (payload: unknown): string | null => {
@@ -56,15 +70,19 @@ const fromEmailPrefix = (value: string) => {
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [userCategory, setUserCategory] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const isEmailValid = /\S+@\S+\.\S+/.test(email);
+  const trimmedIdentifier = identifier.trim();
+  const isEmailLogin = /\S+@\S+\.\S+/.test(trimmedIdentifier);
+  const isPhoneLogin = /^\d{7,15}$/.test(trimmedIdentifier);
   const canSubmit =
-    isEmailValid && password.trim().length > 0 && userCategory.length > 0;
+    (isEmailLogin || isPhoneLogin) &&
+    password.trim().length > 0 &&
+    userCategory.length > 0;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -74,10 +92,21 @@ export default function LoginPage() {
     setErrorMessage("");
 
     try {
-      const response = await loginUser({
-        email,
-        password,
-      });
+      const response = await loginUser(
+        isPhoneLogin
+          ? { phone: trimmedIdentifier, password }
+          : { email: trimmedIdentifier, password }
+      );
+
+      if (response.requiresVerification === true) {
+        if (isEmailLogin) {
+          localStorage.setItem("alpharider_pending_email", trimmedIdentifier);
+        }
+        localStorage.setItem("alpharider_is_verified", "false");
+        setErrorMessage("Please verify your account before logging in.");
+        router.push("/auth/verify");
+        return;
+      }
 
       const token = toAccessToken(response);
       if (!token) {
@@ -85,9 +114,15 @@ export default function LoginPage() {
         return;
       }
       localStorage.setItem("alpharider_token", token);
-      localStorage.setItem("alpharider_email", email.trim());
+      localStorage.setItem("alpharider_last_activity_at", String(Date.now()));
+      localStorage.setItem("alpharider_is_verified", "true");
+      if (isEmailLogin) {
+        localStorage.setItem("alpharider_email", trimmedIdentifier);
+      }
 
-      let displayName = toDisplayName(response) || fromEmailPrefix(email);
+      let displayName =
+        toDisplayName(response) ||
+        (isEmailLogin ? fromEmailPrefix(trimmedIdentifier) : "");
       try {
         const profile =
           userCategory === "user"
@@ -99,7 +134,10 @@ export default function LoginPage() {
       }
 
       if (displayName) {
-        localStorage.setItem("alpharider_display_name", displayName);
+        localStorage.setItem(
+          "alpharider_display_name",
+          normalizeDisplayName(displayName)
+        );
       }
 
       router.push(userCategory === "user" ? "/user/dashboard" : "/dashboard");
@@ -125,13 +163,13 @@ export default function LoginPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
-            Email
+            Email or Phone Number
             <div className="input-group">
               <input
-                type="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                type="text"
+                placeholder="Email address or phone number"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
               />
             </div>
           </label>

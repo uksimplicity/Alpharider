@@ -14,6 +14,9 @@ export type DeliveryRecord = {
   updated_at?: string;
 };
 
+export const extractDeliveryId = (item: DeliveryRecord, fallback?: string) =>
+  item.id ?? item.delivery_id ?? item.order_id ?? fallback ?? "";
+
 type DeliveryListResponse = {
   data?: DeliveryRecord[];
   deliveries?: DeliveryRecord[];
@@ -112,7 +115,7 @@ export async function updateDeliveryStatus(
   return requestJson<Record<string, unknown>>(API_ENDPOINTS.deliveries.status(id), {
     method: "PUT",
     headers: withAuthHeaders(token),
-    body: JSON.stringify(status),
+    body: JSON.stringify({ status }),
   });
 }
 

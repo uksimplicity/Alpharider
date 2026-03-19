@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMyDeliveries, type DeliveryRecord } from "@/lib/deliveries-api";
+import {
+  extractDeliveryId,
+  getMyDeliveries,
+  type DeliveryRecord,
+} from "@/lib/deliveries-api";
+import {
+  formatDeliveryStatusLabel,
+  getDeliveryStatusTone,
+  isPendingDeliveryStatus,
+} from "@/lib/delivery-status";
 
 type UiDelivery = {
   id: string;
@@ -12,40 +21,19 @@ type UiDelivery = {
   time: string;
 };
 
-const formatStatusTone = (status: string): UiDelivery["tone"] => {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("deliver") || normalized.includes("complete")) {
-    return "green";
-  }
-  if (normalized.includes("cancel") || normalized.includes("declin")) {
-    return "red";
-  }
-  if (normalized.includes("pending") || normalized.includes("assign")) {
-    return "amber";
-  }
-  return "blue";
-};
-
 const normalizeDelivery = (item: DeliveryRecord, index: number): UiDelivery => {
-  const status = item.status ?? "Transit";
+  const statusLabel = formatDeliveryStatusLabel(item.status);
+  const timeSource = item.updated_at ?? item.created_at ?? "";
+  const timeLabel = timeSource
+    ? new Date(timeSource).toLocaleString()
+    : "Just now";
   return {
-    id: item.id ?? item.delivery_id ?? item.order_id ?? `DEL-${index + 1}`,
-    status,
-    tone: formatStatusTone(status),
+    id: extractDeliveryId(item, `DEL-${index + 1}`),
+    status: statusLabel,
+    tone: getDeliveryStatusTone(item.status),
     destination: item.dropoff_address ?? "Destination",
-    time: item.updated_at ?? item.created_at ?? "Now",
+    time: timeLabel,
   };
-};
-
-const isPendingStatus = (status: string) => {
-  const normalized = status.toLowerCase();
-  return (
-    normalized.includes("pending") ||
-    normalized.includes("transit") ||
-    normalized.includes("assigned") ||
-    normalized.includes("accepted") ||
-    normalized.includes("in_progress")
-  );
 };
 
 export default function UserDeliveryPage() {
@@ -84,12 +72,12 @@ export default function UserDeliveryPage() {
   }, []);
 
   const pendingDeliveries = useMemo(
-    () => items.filter((item) => isPendingStatus(item.status)),
+    () => items.filter((item) => isPendingDeliveryStatus(item.status)),
     [items]
   );
 
   const recentDeliveries = useMemo(
-    () => items.filter((item) => !isPendingStatus(item.status)),
+    () => items.filter((item) => !isPendingDeliveryStatus(item.status)),
     [items]
   );
 
@@ -113,7 +101,12 @@ export default function UserDeliveryPage() {
     return (
       <div className="delivery-list user-delivery-list">
         {list.map((delivery) => (
-          <div className="delivery-item" key={delivery.id}>
+          <button
+            className="delivery-item"
+            key={delivery.id}
+            type="button"
+            onClick={() => router.push(`/user/delivery-details?id=${delivery.id}`)}
+          >
             <div className="delivery-thumb">
               <img src="/office-delivery.svg" alt="Package" />
             </div>
@@ -125,7 +118,7 @@ export default function UserDeliveryPage() {
               <span className={`status-pill ${delivery.tone}`}>{delivery.status}</span>
               <span className="delivery-time">{delivery.time}</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     );

@@ -1,9 +1,69 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getDeliveryById } from "@/lib/deliveries-api";
+import { formatDeliveryStatusLabel } from "@/lib/delivery-status";
 
 export default function DeliverySummaryPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [deliveryId, setDeliveryId] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("Pickup unavailable");
+  const [dropoffAddress, setDropoffAddress] = useState("Destination unavailable");
+  const [pickupContact, setPickupContact] = useState("N/A");
+  const [dropoffContact, setDropoffContact] = useState("N/A");
+  const [status, setStatus] = useState("pending");
+  const [updatedAt, setUpdatedAt] = useState("");
+  const [senderName, setSenderName] = useState("Account Holder");
+  const [senderContact, setSenderContact] = useState("N/A");
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("alpharider_display_name");
+    const storedEmail = localStorage.getItem("alpharider_email");
+    if (storedName?.trim()) {
+      setSenderName(storedName.trim());
+    }
+    if (storedEmail?.trim()) {
+      setSenderContact(storedEmail.trim());
+    }
+
+    const loadSummary = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      const idFromUrl = new URLSearchParams(window.location.search).get("id");
+      const activeId = localStorage.getItem("alpharider_active_delivery_id");
+      const id = idFromUrl ?? activeId ?? "";
+      setDeliveryId(id);
+
+      if (!token || !id) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+      try {
+        const delivery = await getDeliveryById(token, id);
+        setPickupAddress(delivery.pickup_address ?? "Pickup unavailable");
+        setDropoffAddress(delivery.dropoff_address ?? "Destination unavailable");
+        setPickupContact(delivery.pickup_contact ?? "N/A");
+        setDropoffContact(delivery.dropoff_contact ?? "N/A");
+        setStatus(delivery.status ?? "pending");
+        setUpdatedAt(delivery.updated_at ?? delivery.created_at ?? "");
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load delivery summary."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSummary();
+  }, []);
 
   return (
     <div className="auth-page user-delivery-page">
@@ -37,42 +97,59 @@ export default function DeliverySummaryPage() {
         </div>
 
         <section className="summary-section">
-          <h2>Delivery Details (MAY23230024)</h2>
+          <h2>Delivery Details ({deliveryId || "Unavailable"})</h2>
           <ul className="summary-list">
-            <li>Pick up location</li>
-            <li>Destination</li>
-            <li>Today</li>
-            <li>Anytime</li>
-            <li>N1,500</li>
+            <li>{pickupAddress}</li>
+            <li>{dropoffAddress}</li>
+            <li>{updatedAt ? new Date(updatedAt).toLocaleDateString() : "N/A"}</li>
+            <li>{formatDeliveryStatusLabel(status)}</li>
+            <li>N/A</li>
           </ul>
         </section>
 
         <section className="summary-section">
           <h2>Sender</h2>
           <ul className="summary-list">
-            <li>Oluwatobi</li>
-            <li>0825666788</li>
+            <li>{senderName}</li>
+            <li>{senderContact}</li>
           </ul>
         </section>
 
         <section className="summary-section">
           <h2>Receiver</h2>
           <ul className="summary-list">
-            <li>Oluwatobi</li>
-            <li>0825666788, 09067776777</li>
+            <li>{dropoffContact}</li>
+            <li>{pickupContact}</li>
           </ul>
         </section>
 
-        <button className="link-button" type="button">
+        {isLoading ? <p className="helper">Loading delivery summary...</p> : null}
+        {errorMessage ? (
+          <p className="helper danger" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <button
+          className="link-button"
+          type="button"
+          onClick={() => router.push("/user/package-information-3")}
+        >
           Add Another Package
         </button>
 
         <button
           className="user-primary-button form-cta"
           type="button"
-          onClick={() => router.push("/user/payment-method")}
+          onClick={() =>
+            router.push(
+              deliveryId
+                ? `/user/delivery-details?id=${deliveryId}`
+                : "/user/delivery-details"
+            )
+          }
         >
-          Confirm Order
+          Open Delivery Details
         </button>
       </div>
     </div>

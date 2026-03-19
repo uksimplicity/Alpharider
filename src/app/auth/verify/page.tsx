@@ -112,6 +112,7 @@ export default function VerifyPage() {
 
       localStorage.removeItem("alpharider_pending_email");
       localStorage.removeItem("alpharider_pending_phone");
+      localStorage.setItem("alpharider_is_verified", "true");
       router.push("/auth/verified");
     } catch (error) {
       setErrorMessage(

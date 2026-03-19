@@ -4,16 +4,49 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserProfile, updateUserProfile } from "@/lib/user-api";
 
+const readProfileRecord = (payload: unknown): Record<string, unknown> => {
+  if (!payload || typeof payload !== "object") return {};
+  const record = payload as Record<string, unknown>;
+  const nested = record.user ?? record.profile ?? record.data ?? record.result;
+  if (nested && typeof nested === "object") {
+    return nested as Record<string, unknown>;
+  }
+  return record;
+};
+
+const readTextField = (
+  record: Record<string, unknown>,
+  ...keys: string[]
+) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
 export default function EditProfilePage() {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateName, setStateName] = useState("");
+  const [country, setCountry] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+
+  const buildDisplayName = (first: string, last: string) => {
+    const cleanFirst = first.trim();
+    const cleanLast = last.trim();
+    if (cleanFirst && /^user$/i.test(cleanLast)) return cleanFirst;
+    return `${cleanFirst} ${cleanLast}`.trim();
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -29,10 +62,16 @@ export default function EditProfilePage() {
 
       try {
         const profile = await getUserProfile(token);
-        setFirstName(profile.first_name ?? "");
-        setLastName(profile.last_name ?? "");
-        setPhone(profile.phone ?? "");
-        setEmail(profile.email ?? "");
+        const record = readProfileRecord(profile);
+        setFirstName(readTextField(record, "first_name", "firstName"));
+        setLastName(readTextField(record, "last_name", "lastName"));
+        setPhone(readTextField(record, "phone", "phone_number", "phoneNumber"));
+        setEmail(readTextField(record, "email"));
+        setAddress(readTextField(record, "address"));
+        setCity(readTextField(record, "city"));
+        setStateName(readTextField(record, "state"));
+        setCountry(readTextField(record, "country"));
+        setPostalCode(readTextField(record, "postal_code", "postalCode"));
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -63,9 +102,18 @@ export default function EditProfilePage() {
 
     try {
       await updateUserProfile(token, {
-        first_name: firstName,
-        last_name: lastName,
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
+        address: address.trim() || undefined,
+        city: city.trim() || undefined,
+        state: stateName.trim() || undefined,
+        country: country.trim() || undefined,
+        postal_code: postalCode.trim() || undefined,
       });
+      const displayName = buildDisplayName(firstName, lastName);
+      if (displayName) {
+        localStorage.setItem("alpharider_display_name", displayName);
+      }
       setStatusMessage("Profile updated successfully.");
     } catch (error) {
       setErrorMessage(
@@ -105,14 +153,6 @@ export default function EditProfilePage() {
 
         <div className="edit-profile-hero">
           <img className="edit-profile-avatar" src="/icons/user.svg" alt="Profile" />
-          <div className="edit-profile-actions">
-            <button className="user-secondary-button" type="button">
-              Delete
-            </button>
-            <button className="user-primary-button" type="button">
-              Change
-            </button>
-          </div>
         </div>
 
         <form className="edit-form" onSubmit={handleSubmit}>
@@ -150,6 +190,61 @@ export default function EditProfilePage() {
             <span>Email</span>
             <div className="input-group">
               <input type="email" value={email} readOnly />
+            </div>
+          </label>
+
+          <label>
+            <span>Address</span>
+            <div className="input-group">
+              <input
+                type="text"
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>City</span>
+            <div className="input-group">
+              <input
+                type="text"
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>State</span>
+            <div className="input-group">
+              <input
+                type="text"
+                value={stateName}
+                onChange={(event) => setStateName(event.target.value)}
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>Country</span>
+            <div className="input-group">
+              <input
+                type="text"
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>Postal Code</span>
+            <div className="input-group">
+              <input
+                type="text"
+                value={postalCode}
+                onChange={(event) => setPostalCode(event.target.value)}
+              />
             </div>
           </label>
 

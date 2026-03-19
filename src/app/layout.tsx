@@ -1,5 +1,6 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import SessionManager from "./components/SessionManager";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${manrope.variable}`}>
+        <SessionManager />
         {children}
       </body>
     </html>

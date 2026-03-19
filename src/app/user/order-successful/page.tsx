@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 export default function OrderSuccessfulPage() {
   const router = useRouter();
 
+  const handleViewDetails = () => {
+    const deliveryId = localStorage.getItem("alpharider_active_delivery_id");
+    if (deliveryId) {
+      router.push(`/user/delivery-details?id=${deliveryId}`);
+      return;
+    }
+    router.push("/user/delivery-details");
+  };
+
   return (
     <div className="auth-page user-delivery-page">
       <div className="auth-card user-page-card order-success-card">
@@ -76,7 +85,7 @@ export default function OrderSuccessfulPage() {
         <button
           className="user-secondary-button success-button"
           type="button"
-          onClick={() => router.push("/user/delivery-details")}
+          onClick={handleViewDetails}
         >
           View Details
         </button>

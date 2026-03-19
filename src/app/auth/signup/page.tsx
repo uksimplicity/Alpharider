@@ -55,7 +55,7 @@ export default function SignupPage() {
     try {
       const [firstNameRaw, ...lastNameParts] = name.trim().split(/\s+/);
       const firstName = firstNameRaw ?? "";
-      const lastName = lastNameParts.join(" ") || "User";
+      const lastName = lastNameParts.join(" ");
       const role = userCategory === "rider" ? "rider" : "rider_app_customer";
 
       const response = await signupUser({
@@ -69,6 +69,7 @@ export default function SignupPage() {
 
       localStorage.setItem("alpharider_pending_email", email);
       localStorage.setItem("alpharider_pending_phone", phone);
+      localStorage.setItem("alpharider_is_verified", "false");
 
       if (response.requiresVerification === false) {
         router.push("/auth/login");
