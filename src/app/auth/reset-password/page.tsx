@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { resetPassword } from "@/lib/auth-api";
 
 export default function ResetPasswordPage() {
@@ -23,7 +24,7 @@ export default function ResetPasswordPage() {
   }, []);
 
   const isEmailValid = /\S+@\S+\.\S+/.test(email);
-  const otpIsValid = /^\d+$/.test(otp);
+  const otpIsValid = /^\d{6}$/.test(otp);
   const passwordIsValid = password.length >= 8;
   const passwordsMatch = password.length > 0 && password === confirmPassword;
   const canSubmit =
@@ -61,7 +62,7 @@ export default function ResetPasswordPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Reset Password</h1>
         <p className="auth-subtitle">Use the OTP sent to your email</p>
@@ -138,7 +139,7 @@ export default function ResetPasswordPage() {
         </form>
 
         <p className="auth-footer">
-          Didn’t get an OTP?{" "}
+          Didn&apos;t get an OTP?{" "}
           <Link href="/auth/forgot-password">Request a new one</Link>
         </p>
       </div>

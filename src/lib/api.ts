@@ -1,16 +1,8 @@
-const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-const API_BASE_URL = rawApiBaseUrl.replace(/\/$/, "");
+import { API_BASE_URL } from "./endpoints";
 
 const resolveUrl = (path: string) => {
   if (/^https?:\/\//.test(path)) {
     return path;
-  }
-
-  if (!API_BASE_URL) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_API_BASE_URL. Add it to your environment variables."
-    );
   }
 
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

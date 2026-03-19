@@ -3,6 +3,7 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { signupUser } from "@/lib/auth-api";
 
 export default function SignupPage() {
@@ -88,7 +89,7 @@ export default function SignupPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Let’s Get started</h1>
         <p className="auth-subtitle">
@@ -99,7 +100,13 @@ export default function SignupPage() {
           <label>
             Your Name
             <div className="input-group">
-              <img className="icon-img" src="/icons/user.svg" alt="User" />
+              <Image
+                className="icon-img"
+                src="/icons/user.svg"
+                alt="User"
+                width={20}
+                height={20}
+              />
               <input
                 type="text"
                 placeholder="Full name"
@@ -155,7 +162,13 @@ export default function SignupPage() {
           <label>
             Password
             <div className="input-group">
-              <img className="icon-img" src="/icons/lock.svg" alt="Lock" />
+              <Image
+                className="icon-img"
+                src="/icons/lock.svg"
+                alt="Lock"
+                width={20}
+                height={20}
+              />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Input Password"
@@ -168,10 +181,12 @@ export default function SignupPage() {
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((prev) => !prev)}
               >
-                <img
+                <Image
                   className="icon-img"
                   src={showPassword ? "/icons/eye-off.svg" : "/icons/eye.svg"}
                   alt=""
+                  width={20}
+                  height={20}
                 />
               </button>
             </div>
@@ -188,7 +203,13 @@ export default function SignupPage() {
           <label>
             Confirm Password
             <div className="input-group">
-              <img className="icon-img" src="/icons/lock.svg" alt="Lock" />
+              <Image
+                className="icon-img"
+                src="/icons/lock.svg"
+                alt="Lock"
+                width={20}
+                height={20}
+              />
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Re-enter Password"
@@ -203,10 +224,12 @@ export default function SignupPage() {
                 }
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
               >
-                <img
+                <Image
                   className="icon-img"
                   src={showConfirmPassword ? "/icons/eye-off.svg" : "/icons/eye.svg"}
                   alt=""
+                  width={20}
+                  height={20}
                 />
               </button>
             </div>

@@ -1,4 +1,5 @@
 import { requestJson } from "./api";
+import { API_ENDPOINTS } from "./endpoints";
 
 type LoginPayload = {
   email: string;
@@ -33,26 +34,14 @@ type ApiMessageResponse = {
   requiresVerification?: boolean;
 };
 
-const LOGIN_PATH = process.env.NEXT_PUBLIC_API_LOGIN_PATH ?? "/auth/login";
-const SIGNUP_PATH = process.env.NEXT_PUBLIC_API_SIGNUP_PATH ?? "/auth/register";
-const VERIFY_OTP_PATH = process.env.NEXT_PUBLIC_API_VERIFY_OTP_PATH ?? "/auth/verify-email";
-const VERIFY_PHONE_OTP_PATH =
-  process.env.NEXT_PUBLIC_API_VERIFY_PHONE_OTP_PATH ?? "/auth/verify-phone";
-const RESEND_OTP_PATH =
-  process.env.NEXT_PUBLIC_API_RESEND_OTP_PATH ?? "/auth/resend-verification";
-const FORGOT_PASSWORD_PATH =
-  process.env.NEXT_PUBLIC_API_FORGOT_PASSWORD_PATH ?? "/auth/forgot-password";
-const RESET_PASSWORD_PATH =
-  process.env.NEXT_PUBLIC_API_RESET_PASSWORD_PATH ?? "/auth/reset-password";
-
 export const loginUser = (payload: LoginPayload) =>
-  requestJson<ApiMessageResponse>(LOGIN_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.login, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
 export const signupUser = (payload: SignupPayload) =>
-  requestJson<ApiMessageResponse>(SIGNUP_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.register, {
     method: "POST",
     body: JSON.stringify({
       email: payload.email,
@@ -65,13 +54,13 @@ export const signupUser = (payload: SignupPayload) =>
   });
 
 export const verifyOtp = (payload: VerifyOtpPayload) =>
-  requestJson<ApiMessageResponse>(VERIFY_OTP_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.verifyEmail, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
 export const resendOtp = (payload: ResendOtpPayload) =>
-  requestJson<ApiMessageResponse>(RESEND_OTP_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.resendVerification, {
     method: "POST",
     body: JSON.stringify({
       email: payload.email,
@@ -80,13 +69,13 @@ export const resendOtp = (payload: ResendOtpPayload) =>
   });
 
 export const verifyPhoneOtp = (payload: VerifyOtpPayload) =>
-  requestJson<ApiMessageResponse>(VERIFY_PHONE_OTP_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.verifyPhone, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
 export const forgotPassword = (email: string) =>
-  requestJson<ApiMessageResponse>(FORGOT_PASSWORD_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.forgotPassword, {
     method: "POST",
     body: JSON.stringify({ email }),
   });
@@ -96,7 +85,7 @@ export const resetPassword = (payload: {
   otp: number;
   newPassword: string;
 }) =>
-  requestJson<ApiMessageResponse>(RESET_PASSWORD_PATH, {
+  requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.resetPassword, {
     method: "POST",
     body: JSON.stringify({
       email: payload.email,

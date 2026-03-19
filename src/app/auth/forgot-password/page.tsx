@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { forgotPassword } from "@/lib/auth-api";
 
 export default function ForgotPasswordPage() {
@@ -42,7 +43,7 @@ export default function ForgotPasswordPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Forgot Password</h1>
         <p className="auth-subtitle">Enter your email to receive a reset OTP</p>

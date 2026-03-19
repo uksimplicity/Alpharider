@@ -3,7 +3,55 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { loginUser } from "@/lib/auth-api";
+import { getRiderProfile } from "@/lib/rider-api";
+import { getUserProfile } from "@/lib/user-api";
+
+const toDisplayName = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const firstName =
+    (typeof record.first_name === "string" && record.first_name.trim()) ||
+    (typeof record.firstName === "string" && record.firstName.trim()) ||
+    "";
+  const lastName =
+    (typeof record.last_name === "string" && record.last_name.trim()) ||
+    (typeof record.lastName === "string" && record.lastName.trim()) ||
+    "";
+  const directName =
+    (typeof record.name === "string" && record.name.trim()) ||
+    (typeof record.full_name === "string" && record.full_name.trim()) ||
+    "";
+
+  if (firstName || lastName) return `${firstName} ${lastName}`.trim();
+  if (directName) return directName;
+
+  const nested = record.user ?? record.profile ?? record.data;
+  return toDisplayName(nested);
+};
+
+const toAccessToken = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const directToken =
+    (typeof record.token === "string" && record.token.trim()) ||
+    (typeof record.access_token === "string" && record.access_token.trim()) ||
+    (typeof record.accessToken === "string" && record.accessToken.trim()) ||
+    "";
+  if (directToken) return directToken;
+
+  const nested = record.user ?? record.profile ?? record.data ?? record.result;
+  return toAccessToken(nested);
+};
+
+const fromEmailPrefix = (value: string) => {
+  const prefix = value.split("@")[0]?.trim();
+  if (!prefix) return "";
+  return `${prefix.charAt(0).toUpperCase()}${prefix.slice(1)}`;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,9 +79,27 @@ export default function LoginPage() {
         password,
       });
 
-      const token = response.token ?? response.accessToken ?? response.access_token;
-      if (token) {
-        localStorage.setItem("alpharider_token", token);
+      const token = toAccessToken(response);
+      if (!token) {
+        setErrorMessage("Login succeeded but no access token was returned.");
+        return;
+      }
+      localStorage.setItem("alpharider_token", token);
+      localStorage.setItem("alpharider_email", email.trim());
+
+      let displayName = toDisplayName(response) || fromEmailPrefix(email);
+      try {
+        const profile =
+          userCategory === "user"
+            ? await getUserProfile(token)
+            : await getRiderProfile(token);
+        displayName = toDisplayName(profile) || displayName;
+      } catch {
+        // Keep login successful even when profile endpoint is unavailable.
+      }
+
+      if (displayName) {
+        localStorage.setItem("alpharider_display_name", displayName);
       }
 
       router.push(userCategory === "user" ? "/user/dashboard" : "/dashboard");
@@ -50,7 +116,7 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Welcome Back</h1>
         <p className="auth-subtitle">
@@ -89,7 +155,13 @@ export default function LoginPage() {
           <label>
             Password
             <div className="input-group">
-              <img className="icon-img" src="/icons/lock.svg" alt="Lock" />
+              <Image
+                className="icon-img"
+                src="/icons/lock.svg"
+                alt="Lock"
+                width={20}
+                height={20}
+              />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Input Password"
@@ -102,10 +174,12 @@ export default function LoginPage() {
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((prev) => !prev)}
               >
-                <img
+                <Image
                   className="icon-img"
                   src={showPassword ? "/icons/eye-off.svg" : "/icons/eye.svg"}
                   alt=""
+                  width={20}
+                  height={20}
                 />
               </button>
             </div>

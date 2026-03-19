@@ -1,4 +1,5 @@
 import { requestJson } from "./api";
+import { API_ENDPOINTS } from "./endpoints";
 
 const withAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
@@ -28,27 +29,27 @@ export const changeUserPassword = (
     userID?: string;
   }
 ) =>
-  requestJson<Record<string, unknown>>("/user/change-password", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.user.changePassword, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
   });
 
 export const getUserProfile = (token: string) =>
-  requestJson<UserProfile>("/user/profile", {
+  requestJson<UserProfile>(API_ENDPOINTS.user.profile, {
     method: "GET",
     headers: withAuthHeaders(token),
   });
 
 export const updateUserProfile = (token: string, payload: UserProfile) =>
-  requestJson<Record<string, unknown>>("/user/profile", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.user.profile, {
     method: "PUT",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
   });
 
 export const updateUserFcmToken = (token: string, fcmToken: string) =>
-  requestJson<Record<string, unknown>>("/user/update-fcm-token", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.user.updateFcmToken, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify({ fcm_token: fcmToken }),

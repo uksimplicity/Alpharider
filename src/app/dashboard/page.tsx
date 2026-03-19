@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPendingDeliveries } from "@/lib/deliveries-api";
+import { getRiderProfile } from "@/lib/rider-api";
 
 function formatDate(value: Date) {
   return value.toLocaleDateString("en-GB", {
@@ -13,10 +14,41 @@ function formatDate(value: Date) {
   });
 }
 
+const toDisplayName = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const firstName =
+    (typeof record.first_name === "string" && record.first_name.trim()) ||
+    (typeof record.firstName === "string" && record.firstName.trim()) ||
+    "";
+  const lastName =
+    (typeof record.last_name === "string" && record.last_name.trim()) ||
+    (typeof record.lastName === "string" && record.lastName.trim()) ||
+    "";
+  const directName =
+    (typeof record.name === "string" && record.name.trim()) ||
+    (typeof record.full_name === "string" && record.full_name.trim()) ||
+    "";
+
+  if (firstName || lastName) return `${firstName} ${lastName}`.trim();
+  if (directName) return directName;
+
+  const nested = record.user ?? record.profile ?? record.data;
+  return toDisplayName(nested);
+};
+
+const fromEmailPrefix = (value: string) => {
+  const prefix = value.split("@")[0]?.trim();
+  if (!prefix) return "";
+  return `${prefix.charAt(0).toUpperCase()}${prefix.slice(1)}`;
+};
+
 export default function DashboardPage() {
   const currentDate = formatDate(new Date());
   const router = useRouter();
   const [showBalance, setShowBalance] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [requestError, setRequestError] = useState("");
   const [rideRequests, setRideRequests] = useState<
@@ -29,10 +61,21 @@ export default function DashboardPage() {
   const balance = "NGN 42,800";
 
   useEffect(() => {
+    const storedName = localStorage.getItem("alpharider_display_name");
+    if (storedName?.trim()) {
+      setDisplayName(storedName.trim());
+    } else {
+      const storedEmail = localStorage.getItem("alpharider_email");
+      const fallbackName = storedEmail ? fromEmailPrefix(storedEmail) : "";
+      if (fallbackName) {
+        setDisplayName(fallbackName);
+      }
+    }
+
     const loadPendingDeliveries = async () => {
       const token = localStorage.getItem("alpharider_token");
       if (!token) {
-        setRequestError("YOUR ACCOUNT IS NOT VERIFIED YET");
+        setRequestError("");
         setIsLoadingRequests(false);
         return;
       }
@@ -42,6 +85,16 @@ export default function DashboardPage() {
 
       try {
         const deliveries = await getPendingDeliveries(token, 20);
+        try {
+          const profile = await getRiderProfile(token);
+          const profileName = toDisplayName(profile);
+          if (profileName) {
+            setDisplayName(profileName);
+            localStorage.setItem("alpharider_display_name", profileName);
+          }
+        } catch {
+          // Keep dashboard usable even if profile endpoint is unavailable.
+        }
         const mapped = deliveries.map((item, index) => ({
           id: item.id ?? item.delivery_id ?? item.order_id ?? `delivery-${index}`,
           from: item.pickup_address ?? "Pickup address unavailable",
@@ -114,7 +167,7 @@ export default function DashboardPage() {
       <div className="auth-card rider-card rider-dashboard-card">
         <div className="rider-dashboard">
           <header className="rider-topbar">
-            <img className="rider-avatar" src="/icons/user.svg" alt="Moses" />
+            <img className="rider-avatar" src="/icons/user.svg" alt={displayName} />
             <img className="rider-logo" src="/logo.png" alt="AlphaRide" />
             <button
               className="rider-bell"
@@ -135,7 +188,7 @@ export default function DashboardPage() {
 
           <div className="rider-greeting">
             <span className="rider-date">{currentDate}</span>
-            <h1>Hello, Moses!</h1>
+            <h1>{displayName ? `Hello, ${displayName}!` : "Hello!"}</h1>
           </div>
 
           <section className="balance-card">

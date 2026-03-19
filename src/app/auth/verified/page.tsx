@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function AccountVerifiedPage() {
   const router = useRouter();
@@ -9,7 +10,7 @@ export default function AccountVerifiedPage() {
     <div className="verify-page verified-page">
       <div className="verify-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Account created successfully</h1>
         <p className="auth-subtitle">

@@ -1,4 +1,5 @@
 import { requestJson } from "./api";
+import { API_ENDPOINTS } from "./endpoints";
 
 const withAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
@@ -31,7 +32,7 @@ export const uploadFile = async (token: string, file: File, folder?: string) => 
     formData.append("folder", folder);
   }
 
-  return requestJson<UploadedFile>("/upload/file", {
+  return requestJson<UploadedFile>(API_ENDPOINTS.upload.file, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: formData,
@@ -39,7 +40,9 @@ export const uploadFile = async (token: string, file: File, folder?: string) => 
 };
 
 export const listFiles = async (token: string, folder?: string) => {
-  const path = folder ? `/upload/files?folder=${encodeURIComponent(folder)}` : "/upload/files";
+  const path = folder
+    ? `${API_ENDPOINTS.upload.files}?folder=${encodeURIComponent(folder)}`
+    : API_ENDPOINTS.upload.files;
   const response = await requestJson<UploadListResponse>(path, {
     method: "GET",
     headers: withAuthHeaders(token),
@@ -48,7 +51,7 @@ export const listFiles = async (token: string, folder?: string) => {
 };
 
 export const deleteFile = (token: string, id: string) =>
-  requestJson<Record<string, unknown>>(`/upload/file/${id}`, {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.upload.fileById(id), {
     method: "DELETE",
     headers: withAuthHeaders(token),
   });

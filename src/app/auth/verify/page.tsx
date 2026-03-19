@@ -2,6 +2,7 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { resendOtp, verifyOtp, verifyPhoneOtp } from "@/lib/auth-api";
 
 export default function VerifyPage() {
@@ -156,7 +157,7 @@ export default function VerifyPage() {
     <div className="verify-page">
       <div className="verify-card">
         <div className="auth-logo">
-          <img src="/logo.png" alt="AlphaRide" />
+          <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
         <h1>Verify your account</h1>
         <p className="auth-subtitle">
@@ -218,7 +219,7 @@ export default function VerifyPage() {
         {statusMessage ? <span className="helper met">{statusMessage}</span> : null}
 
         <p className="auth-footer">
-          Didn’t get a code?{" "}
+          Didn&apos;t get a code?{" "}
           <button
             type="button"
             className={`resend ${canResend && !isResending ? "active" : ""}`}

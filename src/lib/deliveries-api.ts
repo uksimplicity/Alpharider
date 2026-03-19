@@ -1,4 +1,5 @@
 import { requestJson } from "./api";
+import { API_ENDPOINTS } from "./endpoints";
 
 export type DeliveryRecord = {
   id?: string;
@@ -46,7 +47,7 @@ const buildPathWithQuery = (path: string, query?: Record<string, string | number
 
 export async function getPendingDeliveries(token: string, limit = 20) {
   const response = await requestJson<DeliveryListResponse | DeliveryRecord[]>(
-    buildPathWithQuery("/deliveries/pending", { limit }),
+    buildPathWithQuery(API_ENDPOINTS.deliveries.pending, { limit }),
     {
       method: "GET",
       headers: withAuthHeaders(token),
@@ -57,7 +58,7 @@ export async function getPendingDeliveries(token: string, limit = 20) {
 
 export async function getMyDeliveries(token: string) {
   const response = await requestJson<DeliveryListResponse | DeliveryRecord[]>(
-    "/deliveries/my",
+    API_ENDPOINTS.deliveries.my,
     {
       method: "GET",
       headers: withAuthHeaders(token),
@@ -67,14 +68,14 @@ export async function getMyDeliveries(token: string) {
 }
 
 export async function getDeliveryById(token: string, id: string) {
-  return requestJson<DeliveryRecord>(`/deliveries/${id}`, {
+  return requestJson<DeliveryRecord>(API_ENDPOINTS.deliveries.byId(id), {
     method: "GET",
     headers: withAuthHeaders(token),
   });
 }
 
 export async function acceptDelivery(token: string, id: string) {
-  return requestJson<Record<string, unknown>>(`/deliveries/${id}/accept`, {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.deliveries.accept(id), {
     method: "POST",
     headers: withAuthHeaders(token),
   });
@@ -96,7 +97,7 @@ export async function createDelivery(
     customer_id?: string;
   }
 ) {
-  return requestJson<Record<string, unknown>>("/deliveries", {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.deliveries.create, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
@@ -108,7 +109,7 @@ export async function updateDeliveryStatus(
   id: string,
   status: string
 ) {
-  return requestJson<Record<string, unknown>>(`/deliveries/${id}/status`, {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.deliveries.status(id), {
     method: "PUT",
     headers: withAuthHeaders(token),
     body: JSON.stringify(status),
@@ -123,7 +124,7 @@ export async function broadcastDeliveryLocation(
     longitude: number;
   }
 ) {
-  return requestJson<Record<string, unknown>>(`/deliveries/${id}/location`, {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.deliveries.location(id), {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
@@ -143,7 +144,7 @@ export async function createInternalDelivery(payload: {
   order_id?: string;
   customer_id?: string;
 }) {
-  return requestJson<Record<string, unknown>>("/internal/deliveries", {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.internal.createDelivery, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -153,7 +154,7 @@ export async function assignRiderToInternalDelivery(
   id: string,
   riderId: string
 ) {
-  return requestJson<Record<string, unknown>>(`/internal/deliveries/${id}/assign`, {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.internal.assignRider(id), {
     method: "POST",
     body: JSON.stringify({
       rider_id: riderId,

@@ -1,4 +1,5 @@
 import { requestJson } from "./api";
+import { API_ENDPOINTS } from "./endpoints";
 
 export type RegisterRiderPayload = {
   vehicle_type: string;
@@ -15,7 +16,7 @@ export const registerRider = (
   token: string,
   payload: RegisterRiderPayload
 ) => {
-  return requestJson<Record<string, unknown>>("/rider/register", {
+  return requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.register, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
@@ -23,7 +24,7 @@ export const registerRider = (
 };
 
 export const getRiderProfile = (token: string) =>
-  requestJson<Record<string, unknown>>("/rider/profile", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.profile, {
     method: "GET",
     headers: withAuthHeaders(token),
   });
@@ -32,7 +33,7 @@ export const updateRiderStatus = (
   token: string,
   status: "available" | "busy" | "offline"
 ) =>
-  requestJson<Record<string, unknown>>("/rider/status", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.status, {
     method: "PUT",
     headers: withAuthHeaders(token),
     body: JSON.stringify({ status }),
@@ -45,7 +46,7 @@ export const updateRiderLocation = (
     longitude: number;
   }
 ) =>
-  requestJson<Record<string, unknown>>("/rider/location", {
+  requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.location, {
     method: "POST",
     headers: withAuthHeaders(token),
     body: JSON.stringify(payload),
