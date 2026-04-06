@@ -6,7 +6,7 @@ import {
   broadcastDeliveryLocation,
   getDeliveryById,
   updateDeliveryStatus,
-} from "@/lib/deliveries-api";
+} from "@/lib/services";
 
 export default function StartRidePage() {
   const router = useRouter();
@@ -123,3 +123,4 @@ export default function StartRidePage() {
     </div>
   );
 }
+

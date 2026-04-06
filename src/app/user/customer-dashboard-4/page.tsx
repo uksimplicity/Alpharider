@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearAuthSession } from "@/lib/session";
-import { getUserProfile } from "@/lib/user-api";
+import { getUserProfile } from "@/lib/services";
 
 const profileLinks = [
   { label: "Edit Profile", route: "/user/edit-profile" },
@@ -143,3 +143,4 @@ export default function CustomerDashboardPage() {
     </div>
   );
 }
+

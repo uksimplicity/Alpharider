@@ -2,29 +2,31 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createDelivery } from "@/lib/deliveries-api";
+import { createDelivery } from "@/lib/services";
 
 export default function PackageInformationPage() {
   const router = useRouter();
   const [pickupAddress, setPickupAddress] = useState("");
   const [dropoffAddress, setDropoffAddress] = useState("");
+  const [receiverName, setReceiverName] = useState("");
   const [pickupContact, setPickupContact] = useState("");
-  const [dropoffContact, setDropoffContact] = useState("");
+  const [otherContact, setOtherContact] = useState("");
   const [notes, setNotes] = useState("");
-  const [pickupLat, setPickupLat] = useState("");
-  const [pickupLng, setPickupLng] = useState("");
-  const [dropoffLat, setDropoffLat] = useState("");
-  const [dropoffLng, setDropoffLng] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const DEFAULT_PICKUP_LAT = 6.5244;
+  const DEFAULT_PICKUP_LNG = 3.3792;
+  const DEFAULT_DROPOFF_LAT = 6.6018;
+  const DEFAULT_DROPOFF_LNG = 3.3515;
 
   const canSubmit =
     pickupAddress.trim() &&
-    dropoffAddress.trim() &&
-    pickupLat.trim() &&
-    pickupLng.trim() &&
-    dropoffLat.trim() &&
-    dropoffLng.trim();
+    dropoffAddress.trim();
+
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,7 +38,7 @@ export default function PackageInformationPage() {
       return;
     }
     const isVerified = localStorage.getItem("alpharider_is_verified") === "true";
-    if (!isVerified) {
+    if (!isVerified && !isLocalhost) {
       setErrorMessage(
         "Please verify your account before requesting a delivery."
       );
@@ -50,13 +52,15 @@ export default function PackageInformationPage() {
     try {
       const response = await createDelivery(token, {
         pickup_address: pickupAddress.trim(),
-        pickup_lat: Number(pickupLat),
-        pickup_lng: Number(pickupLng),
+        pickup_lat: DEFAULT_PICKUP_LAT,
+        pickup_lng: DEFAULT_PICKUP_LNG,
         dropoff_address: dropoffAddress.trim(),
-        dropoff_lat: Number(dropoffLat),
-        dropoff_lng: Number(dropoffLng),
+        dropoff_lat: DEFAULT_DROPOFF_LAT,
+        dropoff_lng: DEFAULT_DROPOFF_LNG,
+        receiver_name: receiverName.trim() || undefined,
         pickup_contact: pickupContact.trim() || undefined,
-        dropoff_contact: dropoffContact.trim() || undefined,
+        other_contact: otherContact.trim() || undefined,
+        dropoff_contact: otherContact.trim() || undefined,
         notes: notes.trim() || undefined,
       });
 
@@ -69,7 +73,7 @@ export default function PackageInformationPage() {
         localStorage.setItem("alpharider_active_delivery_id", createdId);
       }
 
-      router.push("/user/order-successful");
+      router.push(createdId ? `/user/waiting?id=${createdId}` : "/user/waiting");
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to create delivery order."
@@ -132,6 +136,15 @@ export default function PackageInformationPage() {
           <div className="form-group">
             <h2>Receiver</h2>
             <label>
+              <span>Receiver Name</span>
+              <input
+                type="text"
+                placeholder="Enter receiver name"
+                value={receiverName}
+                onChange={(event) => setReceiverName(event.target.value)}
+              />
+            </label>
+            <label>
               <span>Pickup Contact</span>
               <input
                 type="text"
@@ -143,13 +156,13 @@ export default function PackageInformationPage() {
               />
             </label>
             <label>
-              <span>Dropoff Contact</span>
+              <span>Other Contact (Optional)</span>
               <input
                 type="text"
                 placeholder="Phone Number"
-                value={dropoffContact}
+                value={otherContact}
                 onChange={(event) =>
-                  setDropoffContact(event.target.value.replace(/\D/g, ""))
+                  setOtherContact(event.target.value.replace(/\D/g, ""))
                 }
               />
             </label>
@@ -160,52 +173,6 @@ export default function PackageInformationPage() {
                 placeholder="Package notes"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="form-row">
-            <label>
-              <span>Pickup Latitude</span>
-              <input
-                type="number"
-                step="any"
-                placeholder="6.5244"
-                value={pickupLat}
-                onChange={(event) => setPickupLat(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Pickup Longitude</span>
-              <input
-                type="number"
-                step="any"
-                placeholder="3.3792"
-                value={pickupLng}
-                onChange={(event) => setPickupLng(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="form-row">
-            <label>
-              <span>Dropoff Latitude</span>
-              <input
-                type="number"
-                step="any"
-                placeholder="6.6018"
-                value={dropoffLat}
-                onChange={(event) => setDropoffLat(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Dropoff Longitude</span>
-              <input
-                type="number"
-                step="any"
-                placeholder="3.3515"
-                value={dropoffLng}
-                onChange={(event) => setDropoffLng(event.target.value)}
               />
             </label>
           </div>
@@ -227,3 +194,4 @@ export default function PackageInformationPage() {
     </div>
   );
 }
+

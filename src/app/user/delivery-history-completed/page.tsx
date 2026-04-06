@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { extractDeliveryId, getMyDeliveries, type DeliveryRecord } from "@/lib/deliveries-api";
+import { extractDeliveryId, getMyDeliveries, type DeliveryRecord } from "@/lib/services";
 import {
   formatDeliveryStatusLabel,
   isCompletedDeliveryStatus,
@@ -183,3 +183,4 @@ export default function DeliveryHistoryCompletedPage() {
     </div>
   );
 }
+

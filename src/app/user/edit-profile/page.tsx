@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getUserProfile, updateUserProfile } from "@/lib/user-api";
+import { getUserProfile, updateUserProfile } from "@/lib/services";
 
 const readProfileRecord = (payload: unknown): Record<string, unknown> => {
   if (!payload || typeof payload !== "object") return {};
@@ -263,3 +263,4 @@ export default function EditProfilePage() {
     </div>
   );
 }
+

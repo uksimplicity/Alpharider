@@ -7,7 +7,7 @@ import {
   registerRider,
   updateRiderLocation,
   updateRiderStatus,
-} from "@/lib/rider-api";
+} from "@/lib/services";
 
 export default function RiderPage() {
   const [vehicleType, setVehicleType] = useState("");
@@ -247,3 +247,4 @@ export default function RiderPage() {
     </div>
   );
 }
+

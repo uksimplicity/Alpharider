@@ -4,7 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { resetPassword } from "@/lib/auth-api";
+import { resetPassword } from "@/lib/services";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -146,3 +146,4 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
+

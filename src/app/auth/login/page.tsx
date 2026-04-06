@@ -1,12 +1,12 @@
-﻿"use client";
+"use client";
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { loginUser } from "@/lib/auth-api";
-import { getRiderProfile } from "@/lib/rider-api";
-import { getUserProfile } from "@/lib/user-api";
+import { loginUser } from "@/lib/services";
+import { getRiderProfile } from "@/lib/services";
+import { getUserProfile } from "@/lib/services";
 
 const toDisplayName = (payload: unknown): string | null => {
   if (!payload || typeof payload !== "object") return null;
@@ -242,9 +242,10 @@ export default function LoginPage() {
         </form>
 
         <p className="auth-footer">
-          Don’t have an account? <Link href="/auth/signup">Create Account</Link>
+          Don�t have an account? <Link href="/auth/signup">Create Account</Link>
         </p>
       </div>
     </div>
   );
 }
+

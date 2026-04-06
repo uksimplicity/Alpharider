@@ -1,9 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function DeliveryChatPage() {
   const router = useRouter();
+  const [chatName, setChatName] = useState("Sender");
+  const [chatPhone, setChatPhone] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name")?.trim();
+    const phone = params.get("phone")?.trim();
+
+    if (name) {
+      setChatName(name);
+    }
+    if (phone && phone !== "N/A") {
+      setChatPhone(phone);
+    }
+  }, []);
 
   return (
     <div className="auth-page delivery-chat-page">
@@ -28,14 +44,23 @@ export default function DeliveryChatPage() {
           </button>
 
           <div className="chat-title">
-            <img className="chat-avatar" src="/icons/user.svg" alt="Oluwatobi" />
+            <img className="chat-avatar" src="/icons/user.svg" alt={chatName} />
             <div>
-              <p className="chat-name">Oluwatobi</p>
+              <p className="chat-name">{chatName}</p>
               <p className="chat-status">Online</p>
             </div>
           </div>
 
-          <button className="chat-icon-button" type="button" aria-label="Call">
+          <button
+            className="chat-icon-button"
+            type="button"
+            aria-label="Call"
+            onClick={() => {
+              if (chatPhone) {
+                window.location.href = `tel:${chatPhone}`;
+              }
+            }}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path
                 d="M6.6 2.6c.4-.4 1-.4 1.4 0l3 3c.4.4.4 1 0 1.4l-1.6 1.6c1.2 2.3 3.2 4.3 5.6 5.6l1.6-1.6c.4-.4 1-.4 1.4 0l3 3c.4.4.4 1 0 1.4l-2 2c-.7.7-1.8 1-2.8.8-6.6-1.4-11.8-6.6-13.2-13.2-.2-1 .1-2.1.8-2.8l2-2Z"

@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { signupUser } from "@/lib/auth-api";
+import { signupUser } from "@/lib/services";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -92,7 +92,7 @@ export default function SignupPage() {
         <div className="auth-logo">
           <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
-        <h1>Let’s Get started</h1>
+        <h1>Let�s Get started</h1>
         <p className="auth-subtitle">
           Sign up to start enjoying stress-free rides
         </p>
@@ -271,3 +271,4 @@ export default function SignupPage() {
     </div>
   );
 }
+

@@ -6,7 +6,7 @@ import {
   broadcastDeliveryLocation,
   getDeliveryById,
   updateDeliveryStatus,
-} from "@/lib/deliveries-api";
+} from "@/lib/services";
 
 export default function DestinationArrivedPage() {
   const router = useRouter();
@@ -101,9 +101,12 @@ export default function DestinationArrivedPage() {
 
           <section className="delivery-sheet destination-sheet">
             <p className="sheet-title">Arrived at destination</p>
-            <div className="sheet-location">
-              <span className="route-pin" aria-hidden="true" />
-              <span>{destinationLabel}</span>
+            <p className="sheet-subtitle">Confirm drop-off location</p>
+            <div className="destination-highlight">
+              <div className="sheet-location">
+                <span className="route-pin" aria-hidden="true" />
+                <span>{destinationLabel}</span>
+              </div>
             </div>
             <button
               className="sheet-btn end-trip-cta"
@@ -111,7 +114,7 @@ export default function DestinationArrivedPage() {
               onClick={handleEndTrip}
               disabled={isEnding}
             >
-              {isEnding ? "Ending..." : "End Trip"}
+              {isEnding ? "Ending..." : "Complete Delivery"}
             </button>
             {errorMessage ? (
               <p className="helper danger" role="alert">
@@ -124,3 +127,4 @@ export default function DestinationArrivedPage() {
     </div>
   );
 }
+

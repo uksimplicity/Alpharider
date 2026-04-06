@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDeliveryById, updateDeliveryStatus } from "@/lib/deliveries-api";
+import { getDeliveryById, updateDeliveryStatus } from "@/lib/services";
 import { formatDeliveryStatusLabel } from "@/lib/delivery-status";
 
 export default function DeliveryDetailsPage() {
@@ -17,6 +17,7 @@ export default function DeliveryDetailsPage() {
   const [status, setStatus] = useState("pending");
   const [updatedAt, setUpdatedAt] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -78,6 +79,30 @@ export default function DeliveryDetailsPage() {
     return "Your package is awaiting pickup.";
   }, [status]);
 
+  const canCancelDelivery = useMemo(() => {
+    const normalized = status.toLowerCase();
+    if (!deliveryId || isCancelling) return false;
+    return !(
+      normalized.includes("cancel") ||
+      normalized.includes("declin") ||
+      normalized.includes("completed") ||
+      normalized.includes("delivered")
+    );
+  }, [deliveryId, isCancelling, status]);
+
+  const isDelivered = useMemo(() => {
+    const normalized = status.toLowerCase();
+    return normalized.includes("completed") || normalized.includes("delivered");
+  }, [status]);
+
+  useEffect(() => {
+    if (!deliveryId) return;
+    const normalized = status.toLowerCase();
+    if (normalized.includes("completed") || normalized.includes("delivered")) {
+      localStorage.removeItem("alpharider_active_delivery_id");
+    }
+  }, [deliveryId, status]);
+
   const handleCancelDelivery = async () => {
     if (!deliveryId || isCancelling) return;
     const token = localStorage.getItem("alpharider_token");
@@ -101,6 +126,13 @@ export default function DeliveryDetailsPage() {
     } finally {
       setIsCancelling(false);
     }
+  };
+
+  const handleOpenCancelConfirm = () => {
+    if (!deliveryId || isCancelling || status.toLowerCase().includes("cancel")) {
+      return;
+    }
+    setShowCancelConfirm(true);
   };
 
   return (
@@ -135,7 +167,7 @@ export default function DeliveryDetailsPage() {
 
         <div className="details-map" />
 
-        <div className="details-progress">
+        <div className={`details-progress ${isDelivered ? "delivered" : ""}`}>
           <span>{pickupAddress}</span>
           <div className="progress-line">
             <span className="progress-dot" />
@@ -202,15 +234,46 @@ export default function DeliveryDetailsPage() {
           </button>
         </div>
 
-        <button
-          className="user-secondary-button details-cancel"
-          type="button"
-          disabled={!deliveryId || isCancelling || status.toLowerCase().includes("cancel")}
-          onClick={handleCancelDelivery}
-        >
-          {isCancelling ? "Cancelling..." : "Cancel"}
-        </button>
+        {canCancelDelivery ? (
+          <button
+            className="user-secondary-button details-cancel"
+            type="button"
+            disabled={!canCancelDelivery}
+            onClick={handleOpenCancelConfirm}
+          >
+            {isCancelling ? "Cancelling..." : "Cancel Delivery"}
+          </button>
+        ) : null}
       </div>
+
+      {showCancelConfirm ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card decline-modal">
+            <p className="modal-title">CANCEL THIS DELIVERY REQUEST?</p>
+            <div className="modal-actions decline-actions">
+              <button
+                className="modal-button ghost"
+                type="button"
+                onClick={() => setShowCancelConfirm(false)}
+              >
+                No
+              </button>
+              <button
+                className="modal-button"
+                type="button"
+                disabled={isCancelling}
+                onClick={async () => {
+                  await handleCancelDelivery();
+                  setShowCancelConfirm(false);
+                }}
+              >
+                {isCancelling ? "Working..." : "Yes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
+

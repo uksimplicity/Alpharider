@@ -7,6 +7,21 @@ export const API_BASE_URL = normalize(
 );
 
 export const API_ENDPOINTS = {
+  admin: {
+    commissions: "/admin/commissions",
+    commissionById: (commissionId: string) =>
+      `/admin/commissions/${commissionId}`,
+    commissionByDelivery: (deliveryId: string) =>
+      `/admin/commissions/delivery/${deliveryId}`,
+    commissionByOrder: (orderId: string) => `/admin/commissions/order/${orderId}`,
+    commissionsByRider: (riderId: string) => `/admin/commissions/rider/${riderId}`,
+    commissionSummaryByRider: (riderId: string) =>
+      `/admin/commissions/rider/${riderId}/summary`,
+    markCommissionPaid: (commissionId: string) =>
+      `/admin/commissions/${commissionId}/mark-paid`,
+    platformSettings: "/admin/platform-settings",
+    platformSettingByKey: (key: string) => `/admin/platform-settings/${key}`,
+  },
   auth: {
     login: process.env.NEXT_PUBLIC_API_LOGIN_PATH ?? "/auth/login",
     register: process.env.NEXT_PUBLIC_API_SIGNUP_PATH ?? "/auth/register",
@@ -21,23 +36,34 @@ export const API_ENDPOINTS = {
     resetPassword:
       process.env.NEXT_PUBLIC_API_RESET_PASSWORD_PATH ?? "/auth/reset-password",
   },
+  riderApp: {
+    deliveries: "/rider-app/deliveries",
+    deliveryById: (id: string) => `/rider-app/deliveries/${id}`,
+  },
   deliveries: {
-    create: "/deliveries",
-    my: "/deliveries/my",
+    create: "/rider-app/deliveries",
+    my: "/rider/deliveries",
     pending: "/deliveries/pending",
-    byId: (id: string) => `/deliveries/${id}`,
-    accept: (id: string) => `/deliveries/${id}/accept`,
-    status: (id: string) => `/deliveries/${id}/status`,
-    location: (id: string) => `/deliveries/${id}/location`,
+    byId: (id: string) => `/rider/deliveries/${id}`,
+    accept: (id: string) => `/rider/deliveries/${id}/accept`,
+    status: (id: string) => `/rider/deliveries/${id}/status`,
+    location: (id: string) => `/rider/deliveries/${id}/location`,
   },
   internal: {
-    createDelivery: "/internal/deliveries",
+    deliveries: "/internal/deliveries",
+    deliveryById: (id: string) => `/internal/deliveries/${id}`,
     assignRider: (id: string) => `/internal/deliveries/${id}/assign`,
+    updateStatus: (id: string) => `/internal/deliveries/${id}/status`,
   },
   rider: {
-    register: "/rider/register",
+    deliveries: "/rider/deliveries",
+    deliveryById: (id: string) => `/rider/deliveries/${id}`,
+    acceptDelivery: (id: string) => `/rider/deliveries/${id}/accept`,
+    deliveryLocation: (id: string) => `/rider/deliveries/${id}/location`,
+    deliveryStatus: (id: string) => `/rider/deliveries/${id}/status`,
+    register: "/rider/kyc",
     profile: "/rider/profile",
-    status: "/rider/status",
+    status: "/rider/go-online",
     location: "/rider/location",
   },
   upload: {
@@ -49,5 +75,20 @@ export const API_ENDPOINTS = {
     changePassword: "/user/change-password",
     profile: "/user/profile",
     updateFcmToken: "/user/update-fcm-token",
+  },
+  legacy: {
+    deliveries: {
+      create: "/deliveries",
+      my: "/deliveries/my",
+      pending: "/deliveries/pending",
+      byId: (id: string) => `/deliveries/${id}`,
+      accept: (id: string) => `/deliveries/${id}/accept`,
+      status: (id: string) => `/deliveries/${id}/status`,
+      location: (id: string) => `/deliveries/${id}/location`,
+    },
+    rider: {
+      register: "/rider/register",
+      status: "/rider/status",
+    },
   },
 } as const;

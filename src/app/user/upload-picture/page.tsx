@@ -2,54 +2,47 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteFile, listFiles, uploadFile, type UploadedFile } from "@/lib/upload-api";
-
-const extractFileIdentity = (item: UploadedFile) =>
-  item.id ?? item.file_id ?? item.public_id ?? "";
+import { uploadFile, type UploadedFile } from "@/lib/services";
 
 const extractFileUrl = (item: UploadedFile) => item.url ?? item.secure_url ?? "";
 
 export default function UploadPicturePage() {
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  const getToken = () => {
+    const storedToken = localStorage.getItem("alpharider_token");
+    if (storedToken) return storedToken;
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    return isLocalhost ? "local-mock-token" : null;
+  };
 
   useEffect(() => {
-    const loadFiles = async () => {
-      const token = localStorage.getItem("alpharider_token");
-      if (!token) {
-        setErrorMessage("Please log in first.");
-        setIsLoadingFiles(false);
-        return;
-      }
-
-      setIsLoadingFiles(true);
-      try {
-        const files = await listFiles(token, "rider-packages");
-        setUploadedFiles(files);
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unable to load files."
-        );
-      } finally {
-        setIsLoadingFiles(false);
-      }
-    };
-
-    void loadFiles();
+    localStorage.removeItem("alpharider_package_image_url");
   }, []);
 
-  const handleUpload = async () => {
-    if (!selectedFile || isUploading) return;
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
-    const token = localStorage.getItem("alpharider_token");
+  const handleUpload = async () => {
+    if (!selectedFile || isUploading) return false;
+
+    const token = getToken();
     if (!token) {
       setErrorMessage("Please log in first.");
-      return;
+      return false;
     }
 
     setIsUploading(true);
@@ -58,46 +51,49 @@ export default function UploadPicturePage() {
 
     try {
       const uploaded = await uploadFile(token, selectedFile, "rider-packages");
-      setUploadedFiles((prev) => [uploaded, ...prev]);
 
       const url = extractFileUrl(uploaded);
       if (url) {
-        localStorage.setItem("alpharider_package_image_url", url);
+        try {
+          localStorage.setItem("alpharider_package_image_url", url);
+        } catch {
+          setErrorMessage(
+            "Image uploaded, but preview could not be saved locally due to browser storage limits."
+          );
+        }
       }
       setStatusMessage("File uploaded successfully.");
       setSelectedFile(null);
+      return true;
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to upload file."
       );
+      return false;
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDelete = async (file: UploadedFile) => {
-    const token = localStorage.getItem("alpharider_token");
-    if (!token) {
-      setErrorMessage("Please log in first.");
-      return;
-    }
-
-    const id = extractFileIdentity(file);
-    if (!id) {
-      setErrorMessage("File ID is missing for deletion.");
-      return;
-    }
+  const handleContinue = async () => {
+    if (isContinuing) return;
+    setIsContinuing(true);
+    setErrorMessage("");
 
     try {
-      await deleteFile(token, id);
-      setUploadedFiles((prev) =>
-        prev.filter((entry) => extractFileIdentity(entry) !== id)
-      );
-      setStatusMessage("File deleted.");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unable to delete file."
-      );
+      if (selectedFile) {
+        const uploaded = await handleUpload();
+        if (!uploaded) {
+          return;
+        }
+      } else if (!localStorage.getItem("alpharider_package_image_url")) {
+        setErrorMessage("Please choose and upload a package picture first.");
+        return;
+      }
+
+      router.push("/user/upload-picture-1");
+    } finally {
+      setIsContinuing(false);
     }
   };
 
@@ -133,11 +129,31 @@ export default function UploadPicturePage() {
           <p>Please upload a picture of your package.</p>
         </div>
 
+        <div className="upload-preview">
+          {previewUrl ? (
+            <img src={previewUrl} alt="Selected package preview" />
+          ) : null}
+        </div>
+
         <div className="upload-actions" style={{ display: "grid", gap: "10px" }}>
           <input
             type="file"
             accept="image/*"
-            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const nextFile = event.target.files?.[0] ?? null;
+              setSelectedFile(nextFile);
+
+              if (previewUrl && previewUrl.startsWith("blob:")) {
+                URL.revokeObjectURL(previewUrl);
+              }
+
+              if (nextFile) {
+                const nextPreview = URL.createObjectURL(nextFile);
+                setPreviewUrl(nextPreview);
+              } else {
+                setPreviewUrl("");
+              }
+            }}
           />
           <button
             className="user-primary-button"
@@ -150,45 +166,14 @@ export default function UploadPicturePage() {
           <button
             className="user-secondary-button"
             type="button"
-            onClick={() => router.push("/user/upload-picture-1")}
+            onClick={() => {
+              void handleContinue();
+            }}
+            disabled={isContinuing}
           >
-            Continue
+            {isContinuing ? "Please wait..." : "Continue"}
           </button>
         </div>
-
-        {isLoadingFiles ? <p className="helper">Loading uploaded files...</p> : null}
-        {uploadedFiles.length > 0 ? (
-          <div className="settings-list">
-            {uploadedFiles.slice(0, 5).map((file, index) => (
-              <button
-                key={`${extractFileIdentity(file)}-${index}`}
-                className="settings-item"
-                type="button"
-                onClick={() => {
-                  const url = extractFileUrl(file);
-                  if (url) {
-                    localStorage.setItem("alpharider_package_image_url", url);
-                    setStatusMessage("Selected image for preview.");
-                  }
-                }}
-              >
-                {file.name ?? extractFileIdentity(file) ?? `File ${index + 1}`}
-              </button>
-            ))}
-            <button
-              className="settings-item danger"
-              type="button"
-              onClick={() => {
-                const first = uploadedFiles[0];
-                if (first) {
-                  void handleDelete(first);
-                }
-              }}
-            >
-              Delete First File
-            </button>
-          </div>
-        ) : null}
 
         {errorMessage ? (
           <p className="helper danger" role="alert">
@@ -200,3 +185,4 @@ export default function UploadPicturePage() {
     </div>
   );
 }
+

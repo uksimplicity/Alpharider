@@ -6,7 +6,7 @@ import {
   extractDeliveryId,
   getMyDeliveries,
   type DeliveryRecord,
-} from "@/lib/deliveries-api";
+} from "@/lib/services";
 import {
   formatDeliveryStatusLabel,
   getDeliveryStatusTone,
@@ -182,3 +182,4 @@ export default function UserDeliveryPage() {
     </div>
   );
 }
+

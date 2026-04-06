@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { changeUserPassword } from "@/lib/user-api";
+import { changeUserPassword } from "@/lib/services";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -132,3 +132,4 @@ export default function ChangePasswordPage() {
     </div>
   );
 }
+

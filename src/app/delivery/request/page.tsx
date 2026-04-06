@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { acceptDelivery, getDeliveryById } from "@/lib/deliveries-api";
+import {
+  acceptDelivery,
+  getDeliveryById,
+  updateDeliveryStatus,
+} from "@/lib/services";
 
 export default function DeliveryRequestPage() {
   const router = useRouter();
@@ -13,26 +17,38 @@ export default function DeliveryRequestPage() {
   const [pickupContact, setPickupContact] = useState("+2348000000000");
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [isDeclining, setIsDeclining] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     const loadDeliveryDetails = async () => {
-      const idFromUrl = new URLSearchParams(window.location.search).get("id");
+      const searchParams = new URLSearchParams(window.location.search);
+      const idFromUrl = searchParams.get("id");
+      const fromFromUrl = searchParams.get("from");
+      const toFromUrl = searchParams.get("to");
       if (!idFromUrl) {
-        setErrorMessage("Delivery ID is missing.");
+        setActionError("Delivery ID is missing.");
         setIsLoading(false);
         return;
+      }
+      if (fromFromUrl) {
+        setPickupAddress(fromFromUrl);
+      }
+      if (toFromUrl) {
+        setDropoffAddress(toFromUrl);
       }
 
       const token = localStorage.getItem("alpharider_token");
       if (!token) {
-        setErrorMessage("Please log in to view delivery details.");
+        setActionError("Please log in to view delivery details.");
         setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      setErrorMessage("");
+      setDetailsError("");
+      setActionError("");
       setDeliveryId(idFromUrl);
 
       try {
@@ -41,10 +57,10 @@ export default function DeliveryRequestPage() {
         setDropoffAddress(delivery.dropoff_address ?? "Dropoff address unavailable");
         setPickupContact(delivery.pickup_contact ?? "+2348000000000");
       } catch (error) {
-        setErrorMessage(
+        setDetailsError(
           error instanceof Error
-            ? error.message
-            : "Unable to load delivery details right now."
+            ? `Details unavailable: ${error.message}`
+            : "Details unavailable right now. You can still accept this request."
         );
       } finally {
         setIsLoading(false);
@@ -66,24 +82,50 @@ export default function DeliveryRequestPage() {
     setShowDeclineModal(true);
   };
 
+  const confirmDecline = async () => {
+    if (!deliveryId || isDeclining) return;
+
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) {
+      setActionError("Please log in to decline delivery requests.");
+      return;
+    }
+
+    setIsDeclining(true);
+    setActionError("");
+
+    try {
+      await updateDeliveryStatus(token, deliveryId, "declined");
+      localStorage.removeItem("alpharider_active_delivery_id");
+      router.push(`/delivery/declined?id=${deliveryId}`);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Unable to decline delivery."
+      );
+    } finally {
+      setIsDeclining(false);
+      setShowDeclineModal(false);
+    }
+  };
+
   const handleAccept = async () => {
     if (!deliveryId || isAccepting) return;
 
     const token = localStorage.getItem("alpharider_token");
     if (!token) {
-      setErrorMessage("Please log in to accept delivery requests.");
+      setActionError("Please log in to accept delivery requests.");
       return;
     }
 
     setIsAccepting(true);
-    setErrorMessage("");
+    setActionError("");
 
     try {
       await acceptDelivery(token, deliveryId);
       localStorage.setItem("alpharider_active_delivery_id", deliveryId);
       router.push(`/delivery/accepted?id=${deliveryId}`);
     } catch (error) {
-      setErrorMessage(
+      setActionError(
         error instanceof Error ? error.message : "Unable to accept delivery."
       );
     } finally {
@@ -92,8 +134,8 @@ export default function DeliveryRequestPage() {
   };
 
   const isReadyForActions = useMemo(
-    () => !isLoading && !errorMessage && Boolean(deliveryId),
-    [deliveryId, errorMessage, isLoading]
+    () => !isLoading && Boolean(deliveryId),
+    [deliveryId, isLoading]
   );
 
   return (
@@ -190,10 +232,10 @@ export default function DeliveryRequestPage() {
               <button
                 className="sheet-btn outline"
                 type="button"
-                disabled={!isReadyForActions}
+                disabled={!isReadyForActions || isDeclining}
                 onClick={handleDecline}
               >
-                Decline
+                {isDeclining ? "Declining..." : "Decline"}
               </button>
               <button
                 className="sheet-btn primary"
@@ -205,9 +247,14 @@ export default function DeliveryRequestPage() {
               </button>
             </div>
             {isLoading ? <p className="helper">Loading delivery details...</p> : null}
-            {errorMessage ? (
+            {detailsError ? (
+              <p className="helper" role="status">
+                {detailsError}
+              </p>
+            ) : null}
+            {actionError ? (
               <p className="helper danger" role="alert">
-                {errorMessage}
+                {actionError}
               </p>
             ) : null}
           </section>
@@ -224,16 +271,17 @@ export default function DeliveryRequestPage() {
               <button
                 className="modal-button ghost"
                 type="button"
-                onClick={() => router.back()}
+                onClick={() => setShowDeclineModal(false)}
               >
                 No
               </button>
               <button
                 className="modal-button"
                 type="button"
-                onClick={() => router.push("/delivery/declined")}
+                disabled={isDeclining}
+                onClick={confirmDecline}
               >
-                Yes
+                {isDeclining ? "Working..." : "Yes"}
               </button>
             </div>
           </div>
@@ -242,3 +290,4 @@ export default function DeliveryRequestPage() {
     </div>
   );
 }
+

@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { extractDeliveryId, getMyDeliveries } from "@/lib/services";
+import {
+  formatDeliveryStatusLabel,
+  getDeliveryStatusTone,
+} from "@/lib/delivery-status";
 
 const fromEmailPrefix = (value: string) => {
   const prefix = value.split("@")[0]?.trim();
@@ -38,11 +43,52 @@ const subscribeToStorage = (onStoreChange: () => void) => {
 export default function UserDashboardPage() {
   const router = useRouter();
   const [showBalance, setShowBalance] = useState(true);
+  const [latestOrderId, setLatestOrderId] = useState("");
+  const [latestOrderStatus, setLatestOrderStatus] = useState("");
+  const [latestOrderTone, setLatestOrderTone] = useState<
+    "blue" | "amber" | "green" | "red"
+  >("blue");
   const displayName = useSyncExternalStore(
     subscribeToStorage,
     readStoredDisplayName,
     () => ""
   );
+
+  useEffect(() => {
+    const loadLatestOrder = async () => {
+      const token = localStorage.getItem("alpharider_token");
+      if (!token) return;
+
+      try {
+        const deliveries = await getMyDeliveries(token);
+        if (deliveries.length === 0) return;
+
+        const latest = [...deliveries].sort((a, b) => {
+          const aTime = new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+          const bTime = new Date(b.updated_at ?? b.created_at ?? 0).getTime();
+          return bTime - aTime;
+        })[0];
+
+        setLatestOrderId(extractDeliveryId(latest));
+        setLatestOrderStatus(formatDeliveryStatusLabel(latest.status));
+        setLatestOrderTone(getDeliveryStatusTone(latest.status));
+
+        const normalized = (latest.status ?? "").toLowerCase();
+        if (normalized.includes("completed") || normalized.includes("delivered")) {
+          localStorage.removeItem("alpharider_active_delivery_id");
+        }
+      } catch {
+        // Keep dashboard usable even if deliveries cannot be loaded.
+      }
+    };
+
+    void loadLatestOrder();
+  }, []);
+
+  const handleCreateNewOrder = () => {
+    localStorage.removeItem("alpharider_active_delivery_id");
+    router.push("/user/upload-picture");
+  };
 
   return (
     <div className="auth-page user-dashboard-page">
@@ -125,9 +171,16 @@ export default function UserDashboardPage() {
         <section className="user-activities">
           <h2>Activities</h2>
           <button
+            className="user-primary-button dashboard-create-order"
+            type="button"
+            onClick={handleCreateNewOrder}
+          >
+            Create New Order
+          </button>
+          <button
             className="activity-card"
             type="button"
-            onClick={() => router.push("/user/delivery-empty")}
+            onClick={() => router.push("/user/delivery")}
           >
             <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
               <g fill="none" stroke="currentColor" strokeWidth="4">
@@ -140,6 +193,16 @@ export default function UserDashboardPage() {
               </g>
             </svg>
             <span>Delivery</span>
+            {latestOrderStatus ? (
+              <div className="activity-order-status">
+                <p className="activity-order-id">
+                  {latestOrderId ? `Order: ${latestOrderId}` : "Latest Order"}
+                </p>
+                <span className={`status-pill ${latestOrderTone}`}>
+                  {latestOrderStatus}
+                </span>
+              </div>
+            ) : null}
           </button>
         </section>
 
@@ -222,3 +285,4 @@ export default function UserDashboardPage() {
     </div>
   );
 }
+

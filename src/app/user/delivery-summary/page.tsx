@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDeliveryById } from "@/lib/deliveries-api";
+import { getDeliveryById } from "@/lib/services";
 import { formatDeliveryStatusLabel } from "@/lib/delivery-status";
 
 export default function DeliverySummaryPage() {
@@ -155,3 +155,4 @@ export default function DeliverySummaryPage() {
     </div>
   );
 }
+

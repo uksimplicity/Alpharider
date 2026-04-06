@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { resetPassword } from "@/lib/auth-api";
+import { resetPassword } from "@/lib/services";
 
 export default function VerifyResetPage() {
   const router = useRouter();
@@ -178,3 +178,4 @@ export default function VerifyResetPage() {
     </div>
   );
 }
+

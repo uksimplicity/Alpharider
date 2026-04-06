@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPendingDeliveries } from "@/lib/deliveries-api";
-import { getRiderProfile } from "@/lib/rider-api";
+import {
+  acceptDelivery,
+  extractDeliveryId,
+  getPendingDeliveries,
+  updateDeliveryStatus,
+} from "@/lib/services";
+import { getRiderProfile } from "@/lib/services";
 import { clearAuthSession } from "@/lib/session";
 
 function formatDate(value: Date) {
@@ -72,8 +77,12 @@ export default function DashboardPage() {
   const [displayName, setDisplayName] = useState("");
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [requestError, setRequestError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionDeliveryId, setActionDeliveryId] = useState("");
+  const [actionType, setActionType] = useState<"accept" | "decline" | "">("");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const hasSyncedProfileRef = useRef(false);
   const [rideRequests, setRideRequests] = useState<
     Array<{
       id: string;
@@ -82,6 +91,64 @@ export default function DashboardPage() {
     }>
   >([]);
   const balance = "NGN 42,800";
+
+  const loadPendingDeliveries = useCallback(async () => {
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) {
+      setRequestError("");
+      setIsLoadingRequests(false);
+      return;
+    }
+
+    setIsLoadingRequests(true);
+    setRequestError("");
+
+    try {
+      const deliveries = await getPendingDeliveries(token, 1000);
+      if (!hasSyncedProfileRef.current) {
+        try {
+          const profile = await getRiderProfile(token);
+          const profileName = toDisplayName(profile);
+          if (profileName) {
+            const normalizedName = normalizeDisplayName(profileName);
+            setDisplayName(normalizedName);
+            localStorage.setItem("alpharider_display_name", normalizedName);
+          }
+        } catch {
+          // Keep dashboard usable even if profile endpoint is unavailable.
+        } finally {
+          hasSyncedProfileRef.current = true;
+        }
+      }
+      const mapped = deliveries
+        .map((item) => {
+          const id = extractDeliveryId(item).trim();
+          if (!id) return null;
+          return {
+            id,
+            from: item.pickup_address ?? "Pickup address unavailable",
+            to: item.dropoff_address ?? "Dropoff address unavailable",
+          };
+        })
+        .filter((item): item is { id: string; from: string; to: string } =>
+          Boolean(item)
+        );
+      setRideRequests(mapped);
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        setRideRequests([]);
+        setRequestError("");
+        return;
+      }
+      setRequestError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load pending rides right now."
+      );
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, []);
 
   useEffect(() => {
     const storedName = localStorage.getItem("alpharider_display_name");
@@ -100,54 +167,84 @@ export default function DashboardPage() {
       }
     }
 
-    const loadPendingDeliveries = async () => {
-      const token = localStorage.getItem("alpharider_token");
-      if (!token) {
-        setRequestError("");
-        setIsLoadingRequests(false);
-        return;
-      }
+    void loadPendingDeliveries();
+  }, [loadPendingDeliveries]);
 
-      setIsLoadingRequests(true);
-      setRequestError("");
+  useEffect(() => {
+    // Refresh pending requests so newly created user orders show up
+    // and accepted orders disappear from other riders shortly after.
+    const intervalId = window.setInterval(() => {
+      void loadPendingDeliveries();
+    }, 3000);
 
-      try {
-        const deliveries = await getPendingDeliveries(token, 20);
-        try {
-          const profile = await getRiderProfile(token);
-          const profileName = toDisplayName(profile);
-          if (profileName) {
-            const normalizedName = normalizeDisplayName(profileName);
-            setDisplayName(normalizedName);
-            localStorage.setItem("alpharider_display_name", normalizedName);
-          }
-        } catch {
-          // Keep dashboard usable even if profile endpoint is unavailable.
-        }
-        const mapped = deliveries.map((item, index) => ({
-          id: item.id ?? item.delivery_id ?? item.order_id ?? `delivery-${index}`,
-          from: item.pickup_address ?? "Pickup address unavailable",
-          to: item.dropoff_address ?? "Dropoff address unavailable",
-        }));
-        setRideRequests(mapped);
-      } catch (error) {
-        if (isNotFoundError(error)) {
-          setRideRequests([]);
-          setRequestError("");
-          return;
-        }
-        setRequestError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load pending rides right now."
-        );
-      } finally {
-        setIsLoadingRequests(false);
+    const onFocus = () => {
+      void loadPendingDeliveries();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadPendingDeliveries();
       }
     };
 
-    void loadPendingDeliveries();
-  }, []);
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key === "alpharider_mock_deliveries" ||
+        event.key === "alpharider_active_delivery_id"
+      ) {
+        void loadPendingDeliveries();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [loadPendingDeliveries]);
+
+  const handleRequestAction = async (
+    deliveryId: string,
+    type: "accept" | "decline"
+  ) => {
+    if (!deliveryId || actionDeliveryId) return;
+
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) {
+      setActionError("Please log in again to continue.");
+      return;
+    }
+
+    setActionError("");
+    setActionDeliveryId(deliveryId);
+    setActionType(type);
+
+    try {
+      if (type === "accept") {
+        await acceptDelivery(token, deliveryId);
+        localStorage.setItem("alpharider_active_delivery_id", deliveryId);
+        router.push(`/delivery/accepted?id=${deliveryId}`);
+        return;
+      }
+
+      await updateDeliveryStatus(token, deliveryId, "declined");
+      setRideRequests((prev) => prev.filter((item) => item.id !== deliveryId));
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : `Unable to ${type} delivery request.`
+      );
+    } finally {
+      setActionDeliveryId("");
+      setActionType("");
+    }
+  };
 
   useEffect(() => {
     const handleClickAway = (event: MouseEvent) => {
@@ -192,12 +289,7 @@ export default function DashboardPage() {
     return (
       <div className="rider-request-list">
         {rideRequests.map((request) => (
-          <button
-            className="rider-request-card rider-request-action"
-            type="button"
-            onClick={() => router.push(`/delivery/request?id=${request.id}`)}
-            key={request.id}
-          >
+          <div className="rider-request-card" key={request.id}>
             <div className="route-line">
               <span className="route-dot" />
               <span>{request.from}</span>
@@ -206,11 +298,46 @@ export default function DashboardPage() {
               <span className="route-pin" />
               <span>{request.to}</span>
             </div>
-          </button>
+            <div className="rider-request-actions">
+              <button
+                className="rider-request-btn decline"
+                type="button"
+                disabled={actionDeliveryId === request.id}
+                onClick={() => void handleRequestAction(request.id, "decline")}
+              >
+                {actionDeliveryId === request.id && actionType === "decline"
+                  ? "Declining..."
+                  : "Decline"}
+              </button>
+              <button
+                className="rider-request-btn accept"
+                type="button"
+                disabled={actionDeliveryId === request.id}
+                onClick={() => void handleRequestAction(request.id, "accept")}
+              >
+                {actionDeliveryId === request.id && actionType === "accept"
+                  ? "Accepting..."
+                  : "Accept"}
+              </button>
+            </div>
+          </div>
         ))}
+        {actionError ? (
+          <p className="helper danger" role="alert">
+            {actionError}
+          </p>
+        ) : null}
       </div>
     );
-  }, [isLoadingRequests, requestError, rideRequests, router]);
+  }, [
+    actionDeliveryId,
+    actionError,
+    actionType,
+    handleRequestAction,
+    isLoadingRequests,
+    requestError,
+    rideRequests,
+  ]);
 
   return (
     <div className="auth-page rider-dashboard-page">
@@ -324,3 +451,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

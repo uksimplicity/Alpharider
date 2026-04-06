@@ -3,7 +3,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { resendOtp, verifyOtp, verifyPhoneOtp } from "@/lib/auth-api";
+import { resendOtp, verifyOtp, verifyPhoneOtp } from "@/lib/services";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -236,3 +236,4 @@ export default function VerifyPage() {
     </div>
   );
 }
+

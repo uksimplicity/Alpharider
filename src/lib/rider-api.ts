@@ -1,4 +1,4 @@
-import { requestJson } from "./api";
+import { requestJson, requestJsonWithFallback } from "./api";
 import { API_ENDPOINTS } from "./endpoints";
 
 export type RegisterRiderPayload = {
@@ -16,11 +16,14 @@ export const registerRider = (
   token: string,
   payload: RegisterRiderPayload
 ) => {
-  return requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.register, {
-    method: "POST",
-    headers: withAuthHeaders(token),
-    body: JSON.stringify(payload),
-  });
+  return requestJsonWithFallback<Record<string, unknown>>(
+    [API_ENDPOINTS.rider.register, API_ENDPOINTS.legacy.rider.register],
+    {
+      method: "POST",
+      headers: withAuthHeaders(token),
+      body: JSON.stringify(payload),
+    }
+  );
 };
 
 export const getRiderProfile = (token: string) =>
@@ -33,11 +36,14 @@ export const updateRiderStatus = (
   token: string,
   status: "available" | "busy" | "offline"
 ) =>
-  requestJson<Record<string, unknown>>(API_ENDPOINTS.rider.status, {
-    method: "PUT",
-    headers: withAuthHeaders(token),
-    body: JSON.stringify({ status }),
-  });
+  requestJsonWithFallback<Record<string, unknown>>(
+    [API_ENDPOINTS.rider.status, API_ENDPOINTS.legacy.rider.status],
+    {
+      method: "PUT",
+      headers: withAuthHeaders(token),
+      body: JSON.stringify({ status }),
+    }
+  );
 
 export const updateRiderLocation = (
   token: string,
