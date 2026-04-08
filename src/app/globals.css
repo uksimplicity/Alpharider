@@ -762,6 +762,37 @@ a {
   grid-template-columns: 18px 1fr;
 }
 
+.rider-request-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.rider-request-btn {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rider-request-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.rider-request-btn.decline {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.rider-request-btn.accept {
+  color: #ffffff;
+  background: #2563eb;
+}
+
 .rider-scheduled-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1205,20 +1236,36 @@ a {
   margin-right: 2px;
 }
 
+.auth-page.delivery-accepted-page {
+  min-height: 100vh;
+  padding: 0;
+  align-items: stretch;
+  background: #f5f7fb;
+}
+
 .delivery-accepted-page .auth-card.rider-card {
   width: 375px;
   max-width: 375px;
-  height: 812px;
+  height: min(812px, 100dvh);
   padding: 0;
+  background: #f5f7fb;
+  margin: auto;
+  overflow: hidden;
 }
 
 .delivery-accepted-page .delivery-detail-page {
-  height: 812px;
+  height: 100%;
   width: 375px;
+  border-radius: 26px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef3ff 0%, #f8faff 42%, #ffffff 100%);
+  display: grid;
+  grid-template-rows: 340px 1fr;
 }
 
 .delivery-accepted-page .map-layer {
-  min-height: 495px;
+  min-height: 0;
+  height: 340px;
 }
 
 .delivery-request-page {
@@ -1229,8 +1276,8 @@ a {
 .delivery-request-page .auth-card.rider-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -1275,8 +1322,8 @@ a {
 .rider-dashboard-page .auth-card.rider-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 18px 18px 14px;
   background: #ffffff;
   border-radius: 26px;
@@ -1293,22 +1340,29 @@ a {
 }
 
 .delivery-accepted-page .delivery-sheet.accepted-sheet {
-  min-height: 317px;
-  height: 317px;
+  min-height: 0;
+  height: 100%;
+  margin-top: -2px;
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid #e9eef9;
+  padding: 14px 14px 14px;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  gap: 8px;
 }
 
 .route-search {
   position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: -22px;
+  left: 12px;
+  right: 12px;
+  bottom: -14px;
   background: #ffffff;
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 14px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
 }
 
 .route-search .route-dot {
@@ -1320,8 +1374,10 @@ a {
 
 .turn-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef1f6;
 }
 
 .turn-flag {
@@ -1346,37 +1402,92 @@ a {
   font-size: 14px;
 }
 
+.accepted-destination {
+  margin: 4px 0 0;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: #eef3ff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .accepted-summary {
-  padding-top: 8px;
-  border-top: 1px solid #eef1f6;
+  margin-top: 0;
+  padding: 6px 0 0;
+  border-top: none;
+}
+
+.accepted-contact-list {
+  margin-top: 4px;
+  padding: 9px 10px;
+  border: 1px solid #dbe5f5;
+  border-radius: 14px;
+  background: #f5f9ff;
+  display: grid;
+  gap: 6px;
+}
+
+.accepted-contact-list p {
+  margin: 0;
+  font-size: 12px;
+  color: #111827;
 }
 
 .accepted-cta {
   width: 100%;
-  height: 46px;
+  margin-top: 6px;
+  height: 44px;
   border-radius: 16px;
   background: #2f2bd8;
-  box-shadow: none;
-  font-size: 15px;
+  box-shadow: 0 10px 22px rgba(47, 43, 216, 0.22);
+  font-size: 14px;
 }
 
 .delivery-start-page .auth-card.rider-card,
 .delivery-destination-page .auth-card.rider-card {
   width: 375px;
   max-width: 375px;
-  height: 812px;
+  height: min(812px, 100dvh);
   padding: 0;
 }
 
 .delivery-start-page .delivery-detail-page,
 .delivery-destination-page .delivery-detail-page {
-  height: 812px;
+  height: min(812px, 100dvh);
   width: 375px;
 }
 
 .delivery-start-page .map-layer,
 .delivery-destination-page .map-layer {
   min-height: 560px;
+}
+
+.delivery-destination-page .delivery-detail-page {
+  display: grid;
+  grid-template-rows: 470px 1fr;
+  background: linear-gradient(180deg, #eef3ff 0%, #f8faff 40%, #ffffff 100%);
+  border-radius: 26px;
+  overflow: hidden;
+}
+
+.delivery-destination-page .map-layer {
+  min-height: 0;
+  height: 470px;
+}
+
+.delivery-destination-page .destination-sheet {
+  min-height: 0;
+  height: 100%;
+  padding: 20px 16px 18px;
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid #e9eef9;
+  box-shadow: 0 -10px 26px rgba(15, 23, 42, 0.08);
+  gap: 10px;
+  text-align: left;
+  position: relative;
+  z-index: 2;
 }
 
 .map-topbar-slim {
@@ -1422,6 +1533,18 @@ a {
   color: #111827;
 }
 
+.delivery-destination-page .sheet-title,
+.delivery-destination-page .sheet-subtitle {
+  text-align: left;
+}
+
+.sheet-subtitle {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
 .sheet-location {
   display: flex;
   align-items: center;
@@ -1429,6 +1552,20 @@ a {
   gap: 10px;
   font-size: 14px;
   color: #6b7280;
+}
+
+.destination-highlight {
+  border: 1px solid #dbe5f5;
+  background: #f5f9ff;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.destination-highlight .sheet-location {
+  justify-content: flex-start;
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .start-ride-cta {
@@ -1441,12 +1578,13 @@ a {
 
 .end-trip-cta {
   width: 100%;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 15px;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 14px;
   border: none;
   background: #d62929;
   color: #ffffff;
+  box-shadow: 0 10px 20px rgba(214, 41, 41, 0.2);
 }
 
 .ride-completed-page {
@@ -1456,7 +1594,7 @@ a {
 .ride-completed-card {
   width: 375px;
   max-width: 375px;
-  height: 812px;
+  height: min(812px, 100dvh);
   padding: 18px 20px 28px;
   background: #ffffff;
   border-radius: 20px;
@@ -1556,7 +1694,7 @@ a {
 .delivery-chat-card {
   width: 375px;
   max-width: 375px;
-  height: 812px;
+  height: min(812px, 100dvh);
   padding: 0;
   background: #f3f5f9;
   box-shadow: none;
@@ -1737,11 +1875,13 @@ a {
 }
 
 .auth-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: 0 12px;
+  overflow: hidden;
   background: linear-gradient(
       rgba(255, 255, 255, 0.92),
       rgba(255, 255, 255, 0.92)
@@ -2165,7 +2305,7 @@ a {
 .delivery-declined-card {
   width: 375px;
   max-width: 375px;
-  height: 812px;
+  height: min(812px, 100dvh);
   padding: 24px 24px 32px;
   background: #ffffff;
   border-radius: 20px;
@@ -2220,8 +2360,8 @@ a {
 .user-dashboard-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 18px 18px 14px;
   background: #ffffff;
   border-radius: 26px;
@@ -2358,9 +2498,14 @@ a {
   color: #111827;
 }
 
+.dashboard-create-order {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .activity-card {
-  width: 160px;
-  height: 150px;
+  width: 100%;
+  min-height: 150px;
   border: none;
   border-radius: 16px;
   background: #fff6dc;
@@ -2381,6 +2526,20 @@ a {
 .activity-card span {
   font-size: 13px;
   font-weight: 600;
+}
+
+.activity-order-status {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.activity-order-id {
+  margin: 0;
+  font-size: 11px;
+  color: #6b7280;
 }
 
 .user-bottom-nav {
@@ -2418,11 +2577,16 @@ a {
   background: #f6f7fb;
 }
 
+.user-delivery-page.auth-page {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .user-page-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 18px;
   background: #ffffff;
   border-radius: 26px;
@@ -2689,11 +2853,21 @@ a {
 
 .user-form-card {
   gap: 14px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.user-form-card .auth-form {
+  min-width: 0;
 }
 
 .form-group {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .form-group h2 {
@@ -2704,7 +2878,7 @@ a {
 
 .form-group label {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
   color: #6b7280;
 }
@@ -2713,14 +2887,16 @@ a {
 .form-row input {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-size: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .form-checks {
@@ -2736,7 +2912,37 @@ a {
 }
 
 .form-cta {
-  margin-top: auto;
+  margin-top: 4px;
+  height: 42px;
+}
+
+@media (max-height: 900px) {
+  .user-form-card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .user-form-card .user-page-title {
+    font-size: 15px;
+  }
+
+  .user-form-card .form-group h2 {
+    font-size: 12px;
+  }
+
+  .user-form-card .form-group label {
+    font-size: 11px;
+  }
+
+  .user-form-card .form-group input,
+  .user-form-card .form-row input {
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  .user-form-card .form-row {
+    gap: 8px;
+  }
 }
 
 .user-summary-card {
@@ -2797,8 +3003,8 @@ a {
 .payment-page-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 0;
   background: #ffffff;
   border-radius: 26px;
@@ -3365,22 +3571,122 @@ a {
 }
 
 .waiting-sheet {
-  gap: 16px;
+  gap: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9faff 100%);
+}
+
+.waiting-map-duration {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  z-index: 2;
+}
+
+.waiting-map-duration span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.82);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.25);
+}
+
+.waiting-map-duration span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f0bb1f;
+}
+
+.waiting-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .waiting-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: #111827;
+}
+
+.waiting-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f2bd8;
+  background: #eef1ff;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.waiting-live::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+}
+
+.waiting-status-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+.waiting-id {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiting-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.waiting-status-pill.pending {
+  background: #fff4df;
+  color: #b45309;
+}
+
+.waiting-status-pill.active {
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .waiting-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid #e5e7eb;
-  padding-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px;
+  background: #ffffff;
 }
 
 .waiting-info {
@@ -3442,6 +3748,15 @@ a {
 .waiting-button.filled {
   background: #2f2bd8;
   color: #ffffff;
+}
+
+.waiting-helper {
+  text-align: center;
+  font-size: 12px;
+  background: #eef1ff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #3730a3;
 }
 
 .in-app-card {
@@ -3656,8 +3971,8 @@ a {
 .delivery-details-card {
   width: 375px;
   max-width: 375px;
-  height: 712px;
-  min-height: 712px;
+  height: min(712px, 100dvh);
+  min-height: 0;
   padding: 16px;
   background: #ffffff;
   border-radius: 26px;
@@ -3742,6 +4057,15 @@ a {
   border-radius: 999px;
   background: #ffffff;
   border: 2px solid #9ca3af;
+}
+
+.details-progress.delivered .progress-line {
+  background: #22c55e;
+}
+
+.details-progress.delivered .progress-dot {
+  border-color: #16a34a;
+  background: #dcfce7;
 }
 
 .details-status {

@@ -242,7 +242,7 @@ export default function LoginPage() {
         </form>
 
         <p className="auth-footer">
-          Don’t have an account? <Link href="/auth/signup">Create Account</Link>
+          Donâ€™t have an account? <Link href="/auth/signup">Create Account</Link>
         </p>
       </div>
     </div>

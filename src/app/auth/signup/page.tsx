@@ -92,7 +92,7 @@ export default function SignupPage() {
         <div className="auth-logo">
           <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
         </div>
-        <h1>Let’s Get started</h1>
+        <h1>Letâ€™s Get started</h1>
         <p className="auth-subtitle">
           Sign up to start enjoying stress-free rides
         </p>

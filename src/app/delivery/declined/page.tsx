@@ -1,9 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DeliveryDeclinedPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    localStorage.removeItem("alpharider_active_delivery_id");
+  }, []);
 
   return (
     <div className="auth-page delivery-declined-page">
