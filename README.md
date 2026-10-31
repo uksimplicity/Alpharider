@@ -1,6 +1,14 @@
 # Alpharider
 Your trusted rider app
 
+See [MOBILE_PARITY.md](MOBILE_PARITY.md) for the AlphaRide mobile comparison,
+available web flows, API contracts, and remaining integration requirements.
+
+Run `npm test` for the booking API contract tests. Localhost uses the configured
+backend by default. Development-only delivery and upload mocks require explicit
+`NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK=true` and
+`NEXT_PUBLIC_USE_LOCAL_UPLOAD_MOCK=true`; ride booking always uses the backend.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

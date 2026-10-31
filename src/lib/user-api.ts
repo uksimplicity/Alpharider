@@ -6,6 +6,9 @@ const withAuthHeaders = (token: string) => ({
 });
 
 export type UserProfile = {
+  id?: string;
+  _id?: string;
+  customer_id?: string;
   user_id?: string;
   first_name?: string;
   last_name?: string;
@@ -35,11 +38,13 @@ export const changeUserPassword = (
     body: JSON.stringify(payload),
   });
 
-export const getUserProfile = (token: string) =>
-  requestJson<UserProfile>(API_ENDPOINTS.user.profile, {
+export const getUserProfile = async (token: string): Promise<UserProfile> => {
+  const response = await requestJson<UserProfile & { data?: UserProfile }>(API_ENDPOINTS.user.profile, {
     method: "GET",
     headers: withAuthHeaders(token),
   });
+  return response.data ?? response;
+};
 
 export const updateUserProfile = (token: string, payload: UserProfile) =>
   requestJson<Record<string, unknown>>(API_ENDPOINTS.user.profile, {

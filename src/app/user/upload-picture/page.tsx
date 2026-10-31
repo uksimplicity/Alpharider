@@ -18,10 +18,7 @@ export default function UploadPicturePage() {
   const getToken = () => {
     const storedToken = localStorage.getItem("alpharider_token");
     if (storedToken) return storedToken;
-    const isLocalhost =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-    return isLocalhost ? "local-mock-token" : null;
+    return null;
   };
 
   useEffect(() => {

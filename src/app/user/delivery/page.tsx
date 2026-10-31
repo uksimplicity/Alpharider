@@ -1,4 +1,5 @@
 "use client";
+import { isRide } from "@/lib/booking-api";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,14 +23,13 @@ type UiDelivery = {
 };
 
 const normalizeDelivery = (item: DeliveryRecord, index: number): UiDelivery => {
-  const statusLabel = formatDeliveryStatusLabel(item.status);
   const timeSource = item.updated_at ?? item.created_at ?? "";
   const timeLabel = timeSource
     ? new Date(timeSource).toLocaleString()
     : "Just now";
   return {
     id: extractDeliveryId(item, `DEL-${index + 1}`),
-    status: statusLabel,
+    status: item.status ?? "pending",
     tone: getDeliveryStatusTone(item.status),
     destination: item.dropoff_address ?? "Destination",
     time: timeLabel,
@@ -56,7 +56,7 @@ export default function UserDeliveryPage() {
 
       try {
         const deliveries = await getMyDeliveries(token);
-        setItems(deliveries.map(normalizeDelivery));
+        setItems(deliveries.filter(item => !isRide(item)).map(normalizeDelivery));
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -115,7 +115,7 @@ export default function UserDeliveryPage() {
               <p className="delivery-destination">{delivery.destination}</p>
             </div>
             <div className="delivery-meta">
-              <span className={`status-pill ${delivery.tone}`}>{delivery.status}</span>
+              <span className={`status-pill ${delivery.tone}`}>{formatDeliveryStatusLabel(delivery.status)}</span>
               <span className="delivery-time">{delivery.time}</span>
             </div>
           </button>

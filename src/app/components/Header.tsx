@@ -22,8 +22,9 @@ export default function Header() {
         <img src="/logo.png" alt="AlphaRide" />
       </div>
       <nav className="nav-links">
-        <Link href="#">Home</Link>
-        <Link href="#">Track Package</Link>
+        <Link href="/">Home</Link>
+        <Link href="/user/book-ride">Book a Ride</Link>
+        <Link href="/user/delivery">Track Package</Link>
       </nav>
       <div className="nav-actions">
         <Link className="link" href="/auth/login">

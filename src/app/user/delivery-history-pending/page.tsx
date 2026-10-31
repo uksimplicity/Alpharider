@@ -1,4 +1,5 @@
 "use client";
+import { isRide } from "@/lib/booking-api";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,7 +17,7 @@ type HistoryItem = {
 
 const toHistoryItem = (item: DeliveryRecord, index: number): HistoryItem => ({
   id: extractDeliveryId(item, `DEL-${index + 1}`),
-  status: formatDeliveryStatusLabel(item.status),
+  status: item.status ?? "pending",
   time: item.updated_at
     ? new Date(item.updated_at).toLocaleString()
     : item.created_at
@@ -45,7 +46,7 @@ export default function DeliveryHistoryPendingPage() {
       setErrorMessage("");
       try {
         const deliveries = await getMyDeliveries(token);
-        setItems(deliveries.map(toHistoryItem));
+        setItems(deliveries.filter(item => !isRide(item)).map(toHistoryItem));
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -141,7 +142,7 @@ export default function DeliveryHistoryPendingPage() {
                 <p>{order.id}</p>
                 <span>{order.time}</span>
               </div>
-              <span className="status-pill amber">{order.status}</span>
+              <span className="status-pill amber">{formatDeliveryStatusLabel(order.status)}</span>
             </button>
           ))}
           {!isLoading && !errorMessage && pendingItems.length > 0 ? (

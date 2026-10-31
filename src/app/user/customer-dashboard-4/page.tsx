@@ -1,146 +1,45 @@
-"use client";
-
-import { useEffect, useState } from "react";
+﻿"use client";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import MobilityShell, { MobilityIcon } from "@/app/components/MobilityShell";
+import { getUserProfile, type UserProfile } from "@/lib/user-api";
 import { clearAuthSession } from "@/lib/session";
-import { getUserProfile } from "@/lib/services";
 
-const profileLinks = [
-  { label: "Edit Profile", route: "/user/edit-profile" },
-  { label: "History", route: "/user/delivery-history-pending" },
-  { label: "Settings", route: "/user/settings" },
-  { label: "Logout", route: "/auth/login" },
+const links = [
+  { label: "Edit profile", text: "Keep your contact details up to date", href: "/user/edit-profile" },
+  { label: "Your rides", text: "Active trips, schedules, and ride history", href: "/user/rides" },
+  { label: "Delivery history", text: "Track the packages you send", href: "/user/delivery" },
+  { label: "Wallet", text: "Payment availability", href: "/user/wallet" },
+  { label: "Change password", text: "Manage your account security", href: "/user/change-password" },
+  { label: "Settings", text: "Your account preferences", href: "/user/settings" },
 ];
 
-const normalizeDisplayName = (value: string) => {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  if (/^\S+\s+User$/i.test(cleaned)) {
-    return cleaned.replace(/\s+User$/i, "");
-  }
-  return cleaned;
-};
-
-const toDisplayName = (firstName?: string, lastName?: string) => {
-  const first = firstName?.trim() ?? "";
-  const last = lastName?.trim() ?? "";
-  if (first && /^user$/i.test(last)) return first;
-  return normalizeDisplayName(`${first} ${last}`.trim());
-};
-
-export default function CustomerDashboardPage() {
+export default function AccountPage() {
   const router = useRouter();
-  const [displayName, setDisplayName] = useState("User");
-  const [contactText, setContactText] = useState("");
-  const [profileError, setProfileError] = useState("");
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      const token = localStorage.getItem("alpharider_token");
-      if (!token) {
-        setProfileError("Please log in first.");
-        return;
-      }
-
-      try {
-        const profile = await getUserProfile(token);
-        const fullName = toDisplayName(profile.first_name, profile.last_name);
-        if (fullName) {
-          setDisplayName(fullName);
-          localStorage.setItem("alpharider_display_name", fullName);
-        }
-        const contact = profile.email?.trim() || profile.phone?.trim() || "";
-        setContactText(contact);
-      } catch (error) {
-        setProfileError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load profile right now."
-        );
-      }
-    };
-
-    void loadProfile();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    const token = localStorage.getItem("alpharider_token");
+    if (!token) return;
+    setLoading(true); setError("");
+    try {
+      const value = await getUserProfile(token);
+      setProfile(value);
+      const name = [value.first_name, value.last_name].filter(Boolean).join(" ");
+      if (name) localStorage.setItem("alpharider_display_name", name);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load your profile."); }
+    finally { setLoading(false); }
   }, []);
-
-  return (
-    <div className="auth-page user-dashboard-page">
-      <div className="auth-card user-page-card profile-drawer-card">
-        <header className="profile-header">
-          <button
-            className="user-header-button"
-            type="button"
-            aria-label="Go back"
-            onClick={() => router.back()}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M15 6l-6 6 6 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <img className="user-header-logo" src="/logo.png" alt="AlphaRide" />
-          <span className="user-header-spacer" />
-        </header>
-
-        <div className="profile-hero">
-          <img className="profile-avatar" src="/icons/user.svg" alt={displayName} />
-          <div>
-            <p className="profile-name">{displayName}</p>
-            <p className="profile-rating">
-              {contactText || "Profile details"}
-            </p>
-          </div>
-        </div>
-        {profileError ? (
-          <p className="helper danger" role="alert">
-            {profileError}
-          </p>
-        ) : null}
-
-        <div className="profile-links">
-          {profileLinks.map((link) => (
-            <button
-              className="profile-link"
-              type="button"
-              key={link.label}
-              onClick={() => {
-                if (link.label === "Logout") {
-                  clearAuthSession();
-                }
-                if (link.route) {
-                  router.push(link.route);
-                }
-              }}
-            >
-              <span>{link.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="profile-footer">
-          <div>
-            <p>Become a Driver/Rider</p>
-            <span>More income for you</span>
-          </div>
-          <button className="profile-action" type="button" aria-label="Notification">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  useEffect(() => { void load(); }, [load]);
+  const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Your account";
+  return <MobilityShell>
+    <p className="mobility-eyebrow">ALL IN ONE PLACE</p><h1>Your space.</h1><p className="mobility-muted">Your details, journeys, and preferences.</p>
+    <section className="mobility-panel">
+      {loading ? <p role="status">Loading profile…</p> : error ? <div role="alert"><p className="mobility-error">{error}</p><button className="mobility-button secondary" onClick={load}>Try again</button></div> : <div className="mobility-account-profile"><span className="mobility-profile-icon"><MobilityIcon name="account" /></span><div><h2>{name}</h2><p className="mobility-muted">{profile?.email || profile?.phone || "Add your contact details in Edit profile."}</p></div></div>}
+    </section>
+    <section className="mobility-account-links">{links.map(link => <Link key={link.href} className="mobility-panel mobility-link-panel" href={link.href}><div><h2>{link.label}</h2><p>{link.text}</p></div><MobilityIcon name="arrow" /></Link>)}</section>
+    <div className="mobility-title-row"><Link className="mobility-button secondary" href="/rider">Become a driver or rider</Link><button className="mobility-button secondary" onClick={() => { clearAuthSession(); router.replace("/auth/login"); }}>Sign out</button></div>
+  </MobilityShell>;
 }
-

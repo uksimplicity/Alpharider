@@ -18,7 +18,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "AlphaRider | Delivery & Mobility Partner",
   description:
-    "A modern rider app experience for fast, safe, and reliable deliveries.",
+    "Book a ride, plan your next trip, and send packages with AlphaRide.",
 };
 
 export default function RootLayout({

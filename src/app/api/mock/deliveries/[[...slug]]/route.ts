@@ -79,6 +79,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ slug?: string[] }> }
 ) {
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK !== "true") {
+    return NextResponse.json({ message: "Not found." }, { status: 404 });
+  }
   const { slug = [] } = await context.params;
 
   if (slug.length === 1) {
@@ -109,6 +112,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ slug?: string[] }> }
 ) {
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK !== "true") {
+    return NextResponse.json({ message: "Not found." }, { status: 404 });
+  }
   const { slug = [] } = await context.params;
   const body = await parseBody(request);
   const items = store();
@@ -175,6 +181,9 @@ export async function PUT(
   request: Request,
   context: { params: Promise<{ slug?: string[] }> }
 ) {
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK !== "true") {
+    return NextResponse.json({ message: "Not found." }, { status: 404 });
+  }
   const { slug = [] } = await context.params;
   if (slug.length !== 2 || slug[1] !== "status") {
     return NextResponse.json({ message: "Not found." }, { status: 404 });

@@ -6,6 +6,13 @@ export const formatDeliveryStatusLabel = (status?: string) => {
   if (!normalized) return "Pending";
 
   const map: Record<string, string> = {
+    requested: "Requested",
+    picking_up: "Heading to Pickup",
+    on_the_way: "On the Way",
+    arrived: "Arrived",
+    driver_arrived: "Driver Arrived",
+    ride_started: "Ride Started",
+    scheduled: "Scheduled",
     pending: "Pending",
     assigned: "Assigned",
     accepted: "Accepted",
@@ -43,6 +50,12 @@ export const getDeliveryStatusTone = (
   }
   if (
     normalized.includes("pending") ||
+    normalized.includes("request") ||
+    normalized.includes("picking_up") ||
+    normalized.includes("on_the_way") ||
+    normalized.includes("arriv") ||
+    normalized.includes("started") ||
+    normalized.includes("scheduled") ||
     normalized.includes("assign") ||
     normalized.includes("accept") ||
     normalized.includes("progress") ||
@@ -57,6 +70,12 @@ export const isPendingDeliveryStatus = (status?: string) => {
   const normalized = normalizeStatus(status ?? "");
   return (
     normalized.includes("pending") ||
+    normalized.includes("request") ||
+    normalized.includes("picking_up") ||
+    normalized.includes("on_the_way") ||
+    normalized.includes("arriv") ||
+    normalized.includes("started") ||
+    normalized.includes("scheduled") ||
     normalized.includes("transit") ||
     normalized.includes("assigned") ||
     normalized.includes("accepted") ||
@@ -70,6 +89,7 @@ export const isCompletedDeliveryStatus = (status?: string) => {
     normalized.includes("completed") ||
     normalized.includes("delivered") ||
     normalized.includes("cancel") ||
+    normalized.includes("failed") ||
     normalized.includes("declin")
   );
 };

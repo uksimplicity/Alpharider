@@ -2,7 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createDelivery } from "@/lib/services";
+import { createDelivery, extractDeliveryId, getUserProfile } from "@/lib/services";
+import { emptyRideDraft, normalizeRide, validateRideDraft } from "@/lib/booking-api";
 
 export default function PackageInformationPage() {
   const router = useRouter();
@@ -14,19 +15,13 @@ export default function PackageInformationPage() {
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const DEFAULT_PICKUP_LAT = 6.5244;
-  const DEFAULT_PICKUP_LNG = 3.3792;
-  const DEFAULT_DROPOFF_LAT = 6.6018;
-  const DEFAULT_DROPOFF_LNG = 3.3515;
+  const [coordinates, setCoordinates] = useState({ pickupLat: "", pickupLng: "", dropoffLat: "", dropoffLng: "" });
+  const [packageName, setPackageName] = useState("Package");
+  const [quantity, setQuantity] = useState(1);
 
   const canSubmit =
     pickupAddress.trim() &&
     dropoffAddress.trim();
-
-  const isLocalhost =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,7 +33,7 @@ export default function PackageInformationPage() {
       return;
     }
     const isVerified = localStorage.getItem("alpharider_is_verified") === "true";
-    if (!isVerified && !isLocalhost) {
+    if (!isVerified) {
       setErrorMessage(
         "Please verify your account before requesting a delivery."
       );
@@ -46,17 +41,25 @@ export default function PackageInformationPage() {
       return;
     }
 
+    const locationError = validateRideDraft({ ...emptyRideDraft, ...coordinates, pickup: pickupAddress, dropoff: dropoffAddress });
+    if (locationError) { setErrorMessage(locationError); return; }
+
     setIsLoading(true);
     setErrorMessage("");
 
     try {
+      const profile = await getUserProfile(token);
+      const customerId = profile.id ?? profile._id ?? profile.user_id ?? profile.customer_id;
+      if (!customerId) throw new Error("Your profile is missing a customer identifier.");
       const response = await createDelivery(token, {
+        customer_id: customerId,
+        items: [{ name: packageName.trim() || "Package", quantity }],
         pickup_address: pickupAddress.trim(),
-        pickup_lat: DEFAULT_PICKUP_LAT,
-        pickup_lng: DEFAULT_PICKUP_LNG,
+        pickup_lat: Number(coordinates.pickupLat),
+        pickup_lng: Number(coordinates.pickupLng),
         dropoff_address: dropoffAddress.trim(),
-        dropoff_lat: DEFAULT_DROPOFF_LAT,
-        dropoff_lng: DEFAULT_DROPOFF_LNG,
+        dropoff_lat: Number(coordinates.dropoffLat),
+        dropoff_lng: Number(coordinates.dropoffLng),
         receiver_name: receiverName.trim() || undefined,
         pickup_contact: pickupContact.trim() || undefined,
         other_contact: otherContact.trim() || undefined,
@@ -64,10 +67,8 @@ export default function PackageInformationPage() {
         notes: notes.trim() || undefined,
       });
 
-      const createdId =
-        (response.id as string | undefined) ??
-        (response.delivery_id as string | undefined) ??
-        (response.order_id as string | undefined);
+      const createdId = extractDeliveryId(normalizeRide(response));
+      if (!createdId) throw new Error("The server did not return a delivery reference. Check delivery history before trying again.");
 
       if (createdId) {
         localStorage.setItem("alpharider_active_delivery_id", createdId);
@@ -111,6 +112,10 @@ export default function PackageInformationPage() {
         <h1 className="user-page-title">Package Information</h1>
 
         <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group"><h2>Package</h2>
+            <label><span>Package description</span><input required maxLength={200} value={packageName} onChange={event => setPackageName(event.target.value)} /></label>
+            <label><span>Quantity</span><input type="number" required min={1} max={100} step={1} value={quantity} onChange={event => setQuantity(Number(event.target.value))} /></label>
+          </div>
           <div className="form-group">
             <h2>Location</h2>
             <label>
@@ -133,6 +138,16 @@ export default function PackageInformationPage() {
             </label>
           </div>
 
+          <div className="form-group">
+            <h2>Exact locations</h2>
+            <p className="helper">Address search is not available yet. Copy each location’s coordinates from your map app.</p>
+            {[
+              { key: "pickupLat" as const, label: "Pickup latitude", max: 90 },
+              { key: "pickupLng" as const, label: "Pickup longitude", max: 180 },
+              { key: "dropoffLat" as const, label: "Destination latitude", max: 90 },
+              { key: "dropoffLng" as const, label: "Destination longitude", max: 180 },
+            ].map(field => <label key={field.key}><span>{field.label}</span><input required type="number" inputMode="decimal" min={-field.max} max={field.max} step="any" value={coordinates[field.key]} onChange={event => setCoordinates(current => ({ ...current, [field.key]: event.target.value }))} /></label>)}
+          </div>
           <div className="form-group">
             <h2>Receiver</h2>
             <label>

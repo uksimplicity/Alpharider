@@ -23,7 +23,10 @@ export default function SessionManager() {
     if (isPublicPath(pathname)) return;
 
     const token = localStorage.getItem("alpharider_token");
-    if (!token) return;
+    if (!token) {
+      router.replace("/auth/login");
+      return;
+    }
 
     if (isSessionExpired()) {
       clearAuthSession();

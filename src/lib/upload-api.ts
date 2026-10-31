@@ -10,12 +10,7 @@ const MOCK_UPLOADS_KEY = "alpharider_mock_uploads";
 const isLocalMockEnabled = () => {
   if (typeof window === "undefined") return false;
   const forced = process.env.NEXT_PUBLIC_USE_LOCAL_UPLOAD_MOCK;
-  if (forced === "true") return true;
-  if (forced === "false") return false;
-  return (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-  );
+  return forced === "true" && process.env.NODE_ENV !== "production";
 };
 
 const readMockUploads = (): UploadedFile[] => {

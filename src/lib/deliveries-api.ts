@@ -111,13 +111,7 @@ const withAuthHeaders = (token: string) => ({
 const isLocalMockEnabled = () => {
   if (typeof window === "undefined") return false;
   const forced = process.env.NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK;
-  if (forced === "true") return true;
-  if (forced === "false") return false;
-
-  return (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-  );
+  return forced === "true" && process.env.NODE_ENV !== "production";
 };
 
 const requestLocalMock = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
@@ -268,6 +262,7 @@ export async function createDelivery(
     notes?: string;
     order_id?: string;
     customer_id?: string;
+    items?: { name: string; quantity: number }[];
   }
 ) {
   if (isLocalMockEnabled()) {

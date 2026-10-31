@@ -9,6 +9,8 @@ const SESSION_KEYS = [
   "alpharider_reset_email",
   "alpharider_is_verified",
   "alpharider_last_activity_at",
+  "alpharider_package_image_url",
+  "alpharider_mock_uploads",
 ] as const;
 
 export const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
@@ -16,6 +18,8 @@ export const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 export const clearAuthSession = () => {
   if (typeof window === "undefined") return;
   SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+  sessionStorage.removeItem("alpharider_ride_draft");
+  sessionStorage.removeItem("alpharider_schedule_draft");
 };
 
 export const markSessionActivity = () => {
