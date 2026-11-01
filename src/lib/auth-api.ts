@@ -83,7 +83,7 @@ export const forgotPassword = (email: string) =>
 
 export const resetPassword = (payload: {
   email: string;
-  otp: number;
+  otp: string;
   newPassword: string;
 }) =>
   requestJson<ApiMessageResponse>(API_ENDPOINTS.auth.resetPassword, {

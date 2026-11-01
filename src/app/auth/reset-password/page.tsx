@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword({
         email,
-        otp: Number(otp),
+        otp: otp.trim(),
         newPassword: password,
       });
       localStorage.removeItem("alpharider_reset_email");
