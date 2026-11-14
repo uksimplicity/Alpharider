@@ -1,22 +1,57 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import RiderShell, { Message, riderStyles as styles } from "./RiderShell";
-import { useBackend, useWrite, useStoredQuery } from "@/lib/hooks/use-backend";
-import { accountRequest } from "@/lib/account-client";
-import { date, money, numeric, record, text, unwrap } from "@/lib/backend-data";
+import { useBackend, useStoredQuery } from "@/lib/hooks/use-backend";
+import { date, money, record, text, unwrap } from "@/lib/backend-data";
+import { riderJob } from "@/lib/rider-job";
+import { performJobAction, reconcileJob, type JobReceipt } from "@/lib/rider-job-actions";
 
 export default function DeliveryWorkspace() {
   const id = useStoredQuery("id", "alpharider_active_delivery_id");
-  const [code, setCode] = useState(""), [gpsError, setGpsError] = useState(""), [locating, setLocating] = useState(false);
-  const resource = useBackend(id ? `/rider/deliveries/${encodeURIComponent(id)}` : null, 15000), write = useWrite();
-  const root = unwrap(resource.data), delivery = record(root.delivery ?? root), status = text(delivery.status), customer = record(delivery.customer ?? delivery.user);
-  const path = `/rider/deliveries/${encodeURIComponent(id)}`;
-  const requiresCode = delivery.requires_completion_code !== false && delivery.completion_code_required !== false;
-  const act = (next: string) => void write.run(async () => { await accountRequest(`${path}/${next === "accept" ? "accept" : "status"}`, { method: next === "accept" ? "POST" : "PUT", ...(next !== "accept" ? { body: JSON.stringify({ status: next, ...(code.trim() ? { completed_code: code.trim() } : {}) }) } : {}) }); if (next === "accept") localStorage.setItem("alpharider_active_delivery_id", id); resource.refresh(); });
-  const broadcast = () => { if (!navigator.geolocation) { setGpsError("Location is unavailable in this browser."); return; } setLocating(true); navigator.geolocation.getCurrentPosition(position => { void write.run(async () => { await accountRequest(`${path}/location`, { method: "POST", body: JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude }) }); setGpsError(""); resource.refresh(); }); setLocating(false); }, cause => { setGpsError(cause.message); setLocating(false); }, { enableHighAccuracy: true, timeout: 15000 }); };
-  const phone = text(delivery.pickup_contact ?? customer.phone);
-  return <RiderShell><h1>Delivery details</h1>{!id ? <section className={styles.card}><p>Select a delivery to view its details.</p><Link href="/rider/deliveries">My deliveries</Link></section> : resource.loading ? <p>Loading delivery…</p> : resource.error ? <><Message error={resource.error} /><button onClick={resource.refresh}>Try again</button></> : <><section className={styles.card}><p className={styles.badge}>{status || "Status unavailable"}</p><h2>{text(delivery.reference ?? delivery.id, id)}</h2><p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Customer:</strong> {text(customer.name ?? delivery.customer_name, "Not provided")}</p><p><strong>Receiver:</strong> {text(delivery.receiver_name, "Not provided")}</p><p><strong>Created:</strong> {date(delivery.created_at)}</p>{numeric(delivery.delivery_fee ?? delivery.fee ?? delivery.amount) !== null ? <p><strong>Delivery fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p> : null}{delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}>{/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className={styles.link} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call customer</a> : null}<Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link><button onClick={resource.refresh}>Refresh delivery</button></div></section>
-      <section className={styles.card}><h2>Delivery actions</h2><Message error={write.error} uncertain={write.uncertain} /><Message error={gpsError} /><div className={styles.actions}>{status === "requested" ? <><button disabled={write.busy || write.uncertain} onClick={() => act("accept")}>Accept delivery</button><Link className={styles.link} href="/dashboard">Back to requests</Link><p className={styles.muted}>You can leave this request for another rider.</p></> : null}{status === "assigned" ? <button disabled={write.busy || write.uncertain} onClick={() => act("picking_up")}>On my way to pickup</button> : null}{["assigned", "picking_up"].includes(status) ? <button disabled={write.busy || write.uncertain} onClick={() => act("on_the_way")}>Picked up — start delivery</button> : null}{status === "on_the_way" ? <button disabled={write.busy || write.uncertain} onClick={() => act("delivered")}>Confirm arrival at destination</button> : null}{["delivered", "on_the_way"].includes(status) ? <div className={styles.form}><label>Customer completion code{requiresCode ? "" : " (optional)"}<input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" autoComplete="off" /></label><button disabled={write.busy || write.uncertain || (requiresCode && !code.trim())} onClick={() => act("completed")}>Complete delivery</button></div> : null}{["assigned", "picking_up", "on_the_way"].includes(status) ? <button disabled={write.busy || write.uncertain || locating} onClick={broadcast}>{locating ? "Locating…" : "Share current location"}</button> : null}{["assigned", "picking_up"].includes(status) ? <button disabled={write.busy || write.uncertain} onClick={() => { if (window.confirm("Cancel this assigned delivery?")) act("cancelled"); }}>Cancel delivery</button> : null}{["completed", "cancelled"].includes(status) ? <p>This delivery is {status}.</p> : null}</div></section></>}
+  const [code, setCode] = useState(""), [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [receipt, setReceipt] = useState<{ id: string; data: JobReceipt; error: string } | null>(null);
+  const lock = useRef(false);
+  const resource = useBackend(id ? `/rider/deliveries/${encodeURIComponent(id)}` : null, 20000);
+  const root = unwrap(resource.data), delivery = record(root.delivery ?? root), job = riderJob(delivery), customer = record(delivery.customer ?? delivery.user);
+  useEffect(() => {
+    let active = true;
+    if (resource.data && id) {
+      const value = unwrap(resource.data);
+      void reconcileJob(id, record(value.delivery ?? value)).then(data => { if (active) setReceipt({ id, data, error: "" }); }).catch(cause => { if (active) setReceipt({ id, data: {}, error: cause instanceof Error ? cause.message : "Could not check the previous action." }); });
+    }
+    return () => { active = false; };
+  }, [id, resource.data]);
+  const saved = receipt?.id === id ? receipt : null;
+  const accepted = Boolean(saved?.data.accepted), needsAcceptance = job.needsAcceptance && !accepted;
+  const blocked = busy || resource.loading || Boolean(resource.error) || !saved || Boolean(saved.error) || Boolean(saved.data.pending) || job.expired || job.future || job.terminal;
+  const next = job.nextStatus(accepted);
+  const act = async (action: string) => {
+    if (blocked || lock.current) return;
+    if (!window.confirm(action === "accept" ? `Accept this ${job.kindLabel.toLowerCase()}?\nPickup: ${text(delivery.pickup_address)}\nDestination: ${text(delivery.dropoff_address)}\nFee: ${money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}` : action === "cancelled" ? "Cancel this assigned job?" : `${job.actionLabel(action)}?`)) return;
+    lock.current = true; setBusy(true); setError("");
+    try { await performJobAction(id, action, code); setCode(""); if (action === "accept") localStorage.setItem("alpharider_active_delivery_id", id); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "The action could not be confirmed."); }
+    finally { lock.current = false; setBusy(false); setReceipt(null); resource.refresh(); }
+  };
+  const phone = text(delivery.pickup_contact ?? customer.phone), escrow = record(delivery.escrow);
+  const activeDeliveryId = !needsAcceptance && !job.terminal && ["assigned", "picking_up", "on_the_way", "delivered"].includes(job.status) ? id : undefined;
+  return <RiderShell activeDeliveryId={activeDeliveryId}><h1>{job.kind === "passenger" ? "Ride details" : "Delivery details"}</h1>
+    {!id ? <section className={styles.card}><p>Select a job to view its details.</p><Link href="/rider/deliveries">My jobs</Link></section> : resource.error ? <><Message error={resource.error} /><button onClick={resource.refresh}>Try again</button></> : !resource.data ? <p>Loading job…</p> : <>
+      <section className={styles.card}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status || "Status unavailable"}</span><h2>{text(delivery.reference ?? delivery.id, id)}</h2>
+        <p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Customer:</strong> {text(customer.name ?? delivery.customer_name, "Not provided")}</p>{job.kind !== "passenger" ? <p><strong>Receiver:</strong> {text(delivery.receiver_name, "Not provided")}</p> : null}<p><strong>Created:</strong> {date(delivery.created_at)}</p>
+        {job.scheduledFor ? <p><strong>Scheduled pickup:</strong> {date(new Date(job.scheduledFor).toISOString())}</p> : null}{job.expiresAt ? <p><strong>Request expires:</strong> {date(new Date(job.expiresAt).toISOString())}</p> : null}
+        <p><strong>Fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p><p><strong>Payment method:</strong> {text(delivery.payment_method, "Not reported")}</p><p><strong>Payment status:</strong> {text(delivery.payment_status ?? delivery.paymentStatus, "Not reported")}</p><p><strong>Escrow:</strong> {text(delivery.escrow_status ?? delivery.escrowStatus ?? escrow.status, "Not reported")}</p>
+        {job.source === "marketplace" ? <p className={styles.muted}>Delivery completion does not confirm that escrow funds are available to withdraw. Check Wallet & payouts for your available balance.</p> : null}
+        {delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}>{/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className={styles.link} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call customer</a> : null}<Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link><button disabled={busy} onClick={resource.refresh}>Refresh job</button></div>
+      </section>
+      <section className={styles.card}><h2>Job actions</h2><Message error={error || saved?.error || ""} />
+        {saved?.data.pending ? <p role="alert">The previous action has not been confirmed. Refresh the job to check its status. If it remains unchanged, contact support before submitting again.</p> : null}
+        {job.expired ? <p>This request is no longer available.</p> : job.future ? <p>This job is scheduled for a later time. It cannot be started yet.</p> : job.terminal ? <p>This job is {job.status}.</p> : null}
+        <div className={styles.actions}>{needsAcceptance ? <button disabled={blocked} onClick={() => void act("accept")}>Accept {job.kind === "passenger" ? "ride" : "delivery"}</button> : null}
+          {!needsAcceptance && next ? <div className={styles.form}>{next === "completed" && job.requiresCode ? <label>Customer completion code<input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" autoComplete="off" /></label> : null}<button disabled={blocked || (next === "completed" && job.requiresCode && !code.trim())} onClick={() => void act(next)}>{busy ? "Updating…" : job.actionLabel(next)}</button></div> : null}
+          {!needsAcceptance && ["assigned", "picking_up"].includes(job.status) ? <button disabled={blocked} onClick={() => void act("cancelled")}>Cancel job</button> : null}<Link href="/rider/deliveries">Back to my jobs</Link></div>
+      </section>
+    </>}
   </RiderShell>;
 }

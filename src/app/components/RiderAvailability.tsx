@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { accountRequest, checkSession, currentToken } from "@/lib/account-client";
 import { availability, type Availability } from "@/lib/backend-data";
+import { LocationAccessError, setAvailabilityFromDevice } from "@/lib/rider-location";
 import { Message, riderStyles as styles } from "./RiderShell";
 
 export default function RiderAvailability({ onStatus }: { onStatus?: (status: Availability | null) => void }) {
@@ -18,11 +19,14 @@ export default function RiderAvailability({ onStatus }: { onStatus?: (status: Av
     if (lock.current) return; lock.current = true; generation.current.value++; setBusy(true); setError("");
     try {
       const token = currentToken();
-      await accountRequest("/rider/go-online", { method: "PUT", body: JSON.stringify({ status: next }) });
+      await setAvailabilityFromDevice(next);
       checkSession(token); setStatus(next); onStatus?.(next);
       // A fresh read reconciles the server's persisted state without replaying the write.
       await load();
-    } catch (cause) { setStatus(null); onStatus?.(null); setError(`${cause instanceof Error ? cause.message : "Availability update failed."} Refresh your status before trying again.`); }
+    } catch (cause) {
+      if (!(cause instanceof LocationAccessError)) { setStatus(null); onStatus?.(null); }
+      setError(`${cause instanceof Error ? cause.message : "Availability update failed."}${cause instanceof LocationAccessError ? "" : " Refresh your status before trying again."}`);
+    }
     finally { lock.current = false; setBusy(false); }
   };
   return <section className={styles.card}><h2>Availability</h2><p role="status">{loading ? "Checking availability…" : status === "available" ? "Online — available for requests" : status === "busy" ? "Busy — completing a delivery" : status === "offline" ? "Offline" : "Status unavailable"}</p><Message error={error} /><div className={styles.actions}><button role="switch" aria-checked={status === "available" || status === "busy"} disabled={loading || busy || !status} onClick={() => void update(status === "offline" ? "available" : "offline")}>{busy ? "Updating…" : status === "offline" ? "Go online" : "Go offline"}</button>{!status && !loading ? <><button disabled={busy} onClick={() => void update("available")}>Set online</button><button disabled={busy} onClick={() => void update("offline")}>Set offline</button></> : null}<button disabled={busy} onClick={() => void load()}>Refresh status</button></div></section>;

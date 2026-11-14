@@ -20,6 +20,7 @@ export const clearAuthSession = () => {
   SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
   sessionStorage.removeItem("alpharider_ride_draft");
   sessionStorage.removeItem("alpharider_schedule_draft");
+  window.dispatchEvent(new Event("alpharider:session"));
 };
 
 export const markSessionActivity = () => {

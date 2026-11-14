@@ -12,9 +12,12 @@ const user = require('../src/lib/user-api.ts');
 const account = require('../src/lib/account-client.ts');
 const payouts = require('../src/lib/payout-api.ts');
 const auth = require('../src/lib/auth-api.ts');
+const location = require('../src/lib/rider-location.ts');
+const documents = require('../src/lib/rider-documents.ts');
 const originalFetch = global.fetch, originalStorage = global.localStorage;
+const originalNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
-afterEach(() => { global.fetch = originalFetch; global.localStorage = originalStorage; });
+afterEach(() => { global.fetch = originalFetch; global.localStorage = originalStorage; if (originalNavigator) Object.defineProperty(global, 'navigator', originalNavigator); else delete global.navigator; });
 
 test('profile normalizes nested user/profile responses instead of returning a blank account', async () => {
   for (const payload of [{ data: { user: { id: 'u1', first_name: 'Ada', last_name: 'Okafor', email: 'ada@example.test' } } }, { data: { profile: { user: { id: 'u1', firstName: 'Ada', lastName: 'Okafor', email: 'ada@example.test' } } } }]) {
@@ -109,4 +112,35 @@ test('phone verification identifies the account by email and phone resends use t
   await auth.resendOtp({ email: 'ada@example.test', phone: '+2348000000000', type: 'phone' });
   assert.ok(calls[0].url.endsWith('/auth/verify-phone')); assert.deepEqual(calls[0].body, { email: 'ada@example.test', otp: '001234' });
   assert.deepEqual(calls[1].body, { email: 'ada@example.test', phone: '+2348000000000', type: 'phone' });
+});
+test('going online saves actual device coordinates before availability; going offline does not request location', async () => {
+  global.localStorage = { getItem: () => 'token' }; let geoCalls = 0;
+  Object.defineProperty(global, 'navigator', { configurable: true, value: { geolocation: { getCurrentPosition: success => { geoCalls++; success({ coords: { latitude: 6.58, longitude: 3.32 } }); } } } });
+  const calls = []; global.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return json({ success: true }); };
+  await location.setAvailabilityFromDevice('available');
+  assert.ok(calls[0].url.endsWith('/rider/location')); assert.deepEqual(calls[0].body, { latitude: 6.58, longitude: 3.32 });
+  assert.ok(calls[1].url.endsWith('/rider/go-online')); assert.deepEqual(calls[1].body, { status: 'available' });
+  await location.setAvailabilityFromDevice('offline'); assert.equal(geoCalls, 1); assert.deepEqual(calls[2].body, { status: 'offline' });
+});
+test('denied location or an account change while locating prevents going online', async () => {
+  let token = 'one', callback, calls = 0; global.localStorage = { getItem: () => token }; global.fetch = async () => { calls++; return json({ success: true }); };
+  Object.defineProperty(global, 'navigator', { configurable: true, value: { geolocation: { getCurrentPosition: (success, error) => error({ code: 1 }) } } });
+  await assert.rejects(location.setAvailabilityFromDevice('available'), /Allow location access/); assert.equal(calls, 0);
+  navigator.geolocation.getCurrentPosition = success => { callback = success; };
+  const pending = location.setAvailabilityFromDevice('available'); token = 'two'; callback({ coords: { latitude: 6, longitude: 3 } });
+  await assert.rejects(pending, /account changed/); assert.equal(calls, 0);
+});
+test('document uploads reuse successful uploads when a later file fails and retain the correct folder', async () => {
+  global.localStorage = { getItem: () => 'token' };
+  const first = new File(['pdf'], 'license.pdf', { type: 'application/pdf' }), second = new File(['photo'], 'vehicle.png', { type: 'image/png' }), cache = new Map();
+  const calls = []; let fail = true;
+  global.fetch = async (url, init) => { const file = init.body.get('file'); calls.push(file.name); assert.equal(init.body.get('folder'), 'rider-documents'); return file.name === 'vehicle.png' && fail ? json({ error: 'Upload failed' }, 422) : json({ data: { file: { fileUrl: 'https://files.example.test/' + file.name } } }); };
+  await assert.rejects(documents.uploadRiderDocuments([first, second], 'token', cache), /Upload failed/);
+  fail = false; assert.deepEqual(await documents.uploadRiderDocuments([first, second], 'token', cache), ['https://files.example.test/license.pdf', 'https://files.example.test/vehicle.png']);
+  assert.deepEqual(calls, ['license.pdf', 'vehicle.png', 'vehicle.png']);
+});
+test('all documents are validated before any upload starts', async () => {
+  let calls = 0; global.fetch = async () => { calls++; return json({}); };
+  const valid = new File(['pdf'], 'license.pdf', { type: 'application/pdf' }), invalid = new File(['code'], 'app.exe', { type: 'application/octet-stream' });
+  await assert.rejects(documents.uploadRiderDocuments([valid, invalid], 'token', new Map()), /PDF or image/); assert.equal(calls, 0);
 });

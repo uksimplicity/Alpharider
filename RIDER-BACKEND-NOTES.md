@@ -8,15 +8,22 @@ Checked against the public and rider Swagger documents on 14 November 2026:
 ## Connected screens
 
 - `/dashboard`: personal profile, actual wallet balance, persisted rider availability,
-  online-only requested deliveries, notification count, and navigation.
+  online-only requested jobs plus assigned invitations, notification count, and
+  navigation. See `DRIVER_PARITY.md` for the driver workflow rules.
 - `/rider`: personal details from `/user/profile`, vehicle and availability from
-  `/rider/profile`, KYC submission, and actual browser/manual location updates.
+  `/rider/profile`, and KYC submission with PDF/image document uploads. Riders
+  select files rather than entering URLs. Successful uploads are reused on retry.
+  Going online captures and saves the device location with browser permission;
+  there are no manual coordinate fields in the rider profile.
 - `/user/edit-profile`: normalizes nested backend responses, saves documented
   editable fields and profile-picture uploads, and prevents saving before loading.
-- `/rider/deliveries`: paginated authenticated delivery list and status filter.
+- `/rider/deliveries`: paginated authenticated job list, status filter, source/type
+  labels and filters for source and upcoming scheduled pickups on the current page.
 - Existing rider delivery URLs use one shared detail/action screen. It accepts
   jobs and sends `picking_up`, `on_the_way`, `delivered`, and `completed`, including
-  the customer's completion code. There is no undocumented `declined` write.
+  the customer's completion code for parcels. Passenger rides complete without a
+  parcel code. Assigned invitations require acceptance, and expired/future jobs
+  cannot be started. There is no undocumented `declined` write.
 - `/rider/wallet`: wallet balance, stats, filtered/paginated transactions, verified
   payout bank account, withdrawals, individual withdrawal details and cancellation.
   Withdrawal amounts are rechecked against the current backend payout summary.
@@ -37,7 +44,10 @@ hardcoded balances, fees, rider ratings/names, marketing metrics, and artificial
 delivery IDs. Missing amounts are unavailable rather than zero. Malformed
 responses and HTTP 200 business failures remain errors. Rider KYC, availability,
 delivery writes and uploads each call one documented endpoint, without fallback
-mutation replay. Concurrent/uncertain financial writes are blocked. Responses
+mutation replay. Pending job actions and acceptance receipts persist per account
+across reloads. Concurrent/uncertain financial writes remain blocked after reopening
+until explicit account/history review. Foreground location reporting runs every
+30 seconds while online/busy and pauses when the page is hidden. Responses
 from an earlier account are discarded.
 
 ## Remaining provider/backend dependencies
