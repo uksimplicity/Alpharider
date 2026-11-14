@@ -22,14 +22,14 @@ type UiDelivery = {
   time: string;
 };
 
-const normalizeDelivery = (item: DeliveryRecord, index: number): UiDelivery => {
+const normalizeDelivery = (item: DeliveryRecord): UiDelivery => {
   const timeSource = item.updated_at ?? item.created_at ?? "";
   const timeLabel = timeSource
     ? new Date(timeSource).toLocaleString()
-    : "Just now";
+    : "Date unavailable";
   return {
-    id: extractDeliveryId(item, `DEL-${index + 1}`),
-    status: item.status ?? "pending",
+    id: extractDeliveryId(item),
+    status: item.status ?? "unknown",
     tone: getDeliveryStatusTone(item.status),
     destination: item.dropoff_address ?? "Destination",
     time: timeLabel,
@@ -56,7 +56,7 @@ export default function UserDeliveryPage() {
 
       try {
         const deliveries = await getMyDeliveries(token);
-        setItems(deliveries.filter(item => !isRide(item)).map(normalizeDelivery));
+        setItems(deliveries.filter(item => !isRide(item) && extractDeliveryId(item)).map(normalizeDelivery));
       } catch (error) {
         setErrorMessage(
           error instanceof Error

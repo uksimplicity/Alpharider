@@ -27,10 +27,10 @@ History uses `GET /rider/deliveries`; details use
 `GET /rider-app/deliveries/:id`. The server must retain the ride marker in notes
 or items for correct ride/parcel separation across devices.
 
-Rides always use the configured backend. Legacy delivery/upload mocks now require
-explicit `NEXT_PUBLIC_USE_LOCAL_DELIVERY_MOCK=true` and
-`NEXT_PUBLIC_USE_LOCAL_UPLOAD_MOCK=true` in development. Production disables these
-mocks. Localhost alone no longer silently activates fake data.
+Rides, deliveries and uploads always use the configured backend. Local mock routes
+and sample rider/account data have been removed. See `RIDER-BACKEND-NOTES.md` for
+the connected personal/rider profiles, availability, wallet, payouts, earnings,
+notifications and messaging screens.
 
 ## Remaining shared integration gaps
 
@@ -43,8 +43,9 @@ does not make those capabilities production-ready:
   Until then, the web requires exact coordinates and never supplies default pins.
 - Dedicated quote, ride cancellation, rescheduling, and dispatch APIs are needed.
   No invented prices, arrival times, or passenger-driven status changes are shown.
-- Wallet balances, funding, payments, receipts, ratings/tips, and promo codes need
-  backend contracts. The wallet explicitly shows that it is unavailable.
+- Wallet balance, statistics, transactions, payout accounts and withdrawal history
+  use the documented backend. Funding, delivery payment initialization, receipts,
+  ratings/tips and promo codes still need their applicable contracts.
 - Shared links require the recipient to have access to the trip; public tracking
   needs a scoped share-token endpoint.
 - Push notifications and realtime events need provider configuration and schemas.

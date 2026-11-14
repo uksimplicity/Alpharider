@@ -9,7 +9,7 @@ import {
 } from "@/lib/session";
 
 const PUBLIC_PATH_PREFIXES = ["/auth"];
-const PUBLIC_EXACT_PATHS = ["/", "/rider"];
+const PUBLIC_EXACT_PATHS = ["/"];
 
 const isPublicPath = (pathname: string) =>
   PUBLIC_EXACT_PATHS.includes(pathname) ||
@@ -43,6 +43,10 @@ export default function SessionManager() {
       "touchstart",
     ];
     const onActivity = () => markSessionActivity();
+    const onAccountChange = (event: StorageEvent) => {
+      if (event.key === "alpharider_token" && event.oldValue !== event.newValue) window.location.reload();
+    };
+    window.addEventListener("storage", onAccountChange);
     events.forEach((event) =>
       window.addEventListener(event, onActivity, { passive: true })
     );
@@ -57,6 +61,7 @@ export default function SessionManager() {
     return () => {
       events.forEach((event) => window.removeEventListener(event, onActivity));
       window.clearInterval(intervalId);
+      window.removeEventListener("storage", onAccountChange);
     };
   }, [pathname, router]);
 

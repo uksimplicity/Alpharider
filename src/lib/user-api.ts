@@ -1,5 +1,6 @@
 import { requestJson } from "./api";
 import { API_ENDPOINTS } from "./endpoints";
+import { normalizeProfile } from "./backend-data";
 
 const withAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
@@ -43,7 +44,7 @@ export const getUserProfile = async (token: string): Promise<UserProfile> => {
     method: "GET",
     headers: withAuthHeaders(token),
   });
-  return response.data ?? response;
+  return normalizeProfile(response) as UserProfile;
 };
 
 export const updateUserProfile = (token: string, payload: UserProfile) =>

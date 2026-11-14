@@ -7,11 +7,11 @@ export default function UploadPicturePreviewPage() {
   const router = useRouter();
   const [imageUrl] = useState(() => {
     if (typeof window === "undefined") {
-      return "/office-delivery.svg";
+      return "";
     }
     return (
       localStorage.getItem("alpharider_package_image_url") ??
-      "/office-delivery.svg"
+      ""
     );
   });
 
@@ -43,7 +43,7 @@ export default function UploadPicturePreviewPage() {
         <h1 className="user-page-title">Upload Picture</h1>
 
         <div className="upload-preview">
-          <img src={imageUrl} alt="Package" />
+          {imageUrl ? <img src={imageUrl} alt="Your uploaded package" /> : <p>No package picture selected.</p>}
         </div>
 
         <div className="upload-actions">

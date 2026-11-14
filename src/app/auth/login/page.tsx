@@ -7,6 +7,7 @@ import Image from "next/image";
 import { loginUser } from "@/lib/services";
 import { getRiderProfile } from "@/lib/services";
 import { getUserProfile } from "@/lib/services";
+import { clearAuthSession } from "@/lib/session";
 
 const toDisplayName = (payload: unknown): string | null => {
   if (!payload || typeof payload !== "object") return null;
@@ -113,6 +114,7 @@ export default function LoginPage() {
         setErrorMessage("Login succeeded but no access token was returned.");
         return;
       }
+      clearAuthSession();
       localStorage.setItem("alpharider_token", token);
       localStorage.setItem("alpharider_last_activity_at", String(Date.now()));
       localStorage.setItem("alpharider_is_verified", "true");

@@ -15,14 +15,14 @@ type HistoryItem = {
   time: string;
 };
 
-const toHistoryItem = (item: DeliveryRecord, index: number): HistoryItem => ({
-  id: extractDeliveryId(item, `DEL-${index + 1}`),
-  status: item.status ?? "pending",
+const toHistoryItem = (item: DeliveryRecord): HistoryItem => ({
+  id: extractDeliveryId(item),
+  status: item.status ?? "unknown",
   time: item.updated_at
     ? new Date(item.updated_at).toLocaleString()
     : item.created_at
     ? new Date(item.created_at).toLocaleString()
-    : "Now",
+    : "Date unavailable",
 });
 
 export default function DeliveryHistoryCompletedPage() {
@@ -46,7 +46,7 @@ export default function DeliveryHistoryCompletedPage() {
       setErrorMessage("");
       try {
         const deliveries = await getMyDeliveries(token);
-        setItems(deliveries.filter(item => !isRide(item)).map(toHistoryItem));
+        setItems(deliveries.filter(item => !isRide(item) && extractDeliveryId(item)).map(toHistoryItem));
       } catch (error) {
         setErrorMessage(
           error instanceof Error

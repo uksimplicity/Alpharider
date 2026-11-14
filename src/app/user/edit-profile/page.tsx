@@ -3,14 +3,12 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserProfile, updateUserProfile } from "@/lib/services";
+import { checkSession } from "@/lib/account-client";
+import { uploadFile } from "@/lib/upload-api";
 
 const readProfileRecord = (payload: unknown): Record<string, unknown> => {
   if (!payload || typeof payload !== "object") return {};
   const record = payload as Record<string, unknown>;
-  const nested = record.user ?? record.profile ?? record.data ?? record.result;
-  if (nested && typeof nested === "object") {
-    return nested as Record<string, unknown>;
-  }
   return record;
 };
 
@@ -36,6 +34,9 @@ export default function EditProfilePage() {
   const [stateName, setStateName] = useState("");
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -62,6 +63,7 @@ export default function EditProfilePage() {
 
       try {
         const profile = await getUserProfile(token);
+        checkSession(token);
         const record = readProfileRecord(profile);
         setFirstName(readTextField(record, "first_name", "firstName"));
         setLastName(readTextField(record, "last_name", "lastName"));
@@ -72,6 +74,8 @@ export default function EditProfilePage() {
         setStateName(readTextField(record, "state"));
         setCountry(readTextField(record, "country"));
         setPostalCode(readTextField(record, "postal_code", "postalCode"));
+        setProfilePicture(readTextField(record, "profile_picture"));
+        setLoaded(true);
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -88,7 +92,7 @@ export default function EditProfilePage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isLoading) return;
+    if (isLoading || !loaded || isFetching) return;
 
     const token = localStorage.getItem("alpharider_token");
     if (!token) {
@@ -101,6 +105,8 @@ export default function EditProfilePage() {
     setStatusMessage("");
 
     try {
+      let picture = profilePicture;
+      if (photo) { picture = (await uploadFile(token, photo, "profiles")).url ?? ""; checkSession(token); setProfilePicture(picture); setPhoto(null); }
       await updateUserProfile(token, {
         first_name: firstName.trim() || undefined,
         last_name: lastName.trim() || undefined,
@@ -109,7 +115,9 @@ export default function EditProfilePage() {
         state: stateName.trim() || undefined,
         country: country.trim() || undefined,
         postal_code: postalCode.trim() || undefined,
+        ...(picture ? { profile_picture: picture } : {}),
       });
+      checkSession(token);
       const displayName = buildDisplayName(firstName, lastName);
       if (displayName) {
         localStorage.setItem("alpharider_display_name", displayName);
@@ -152,10 +160,11 @@ export default function EditProfilePage() {
         </header>
 
         <div className="edit-profile-hero">
-          <img className="edit-profile-avatar" src="/icons/user.svg" alt="Profile" />
+          <img className="edit-profile-avatar" src={profilePicture || "/icons/user.svg"} alt="Profile" />
         </div>
 
         <form className="edit-form" onSubmit={handleSubmit}>
+          <label><span>Profile picture (up to 3 MB)</span><input type="file" accept="image/*" disabled={isLoading || !loaded} onChange={event => { const file = event.target.files?.[0] ?? null; if (file && (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024)) { setErrorMessage("Choose an image up to 3 MB."); return; } setPhoto(file); }} /></label>
           <label>
             <span>First Name</span>
             <div className="input-group">
@@ -181,7 +190,6 @@ export default function EditProfilePage() {
           <label>
             <span>Phone Number</span>
             <div className="input-group split">
-              <span className="country-code">+234</span>
               <input type="text" value={phone} readOnly />
             </div>
           </label>
@@ -248,7 +256,7 @@ export default function EditProfilePage() {
             </div>
           </label>
 
-          <button className="user-primary-button form-cta" type="submit" disabled={isLoading}>
+          <button className="user-primary-button form-cta" type="submit" disabled={isLoading || isFetching || !loaded}>
             {isLoading ? "Saving..." : "Save Changes"}
           </button>
           {isFetching ? <p className="helper">Loading profile...</p> : null}

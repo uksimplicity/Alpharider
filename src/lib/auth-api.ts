@@ -23,7 +23,8 @@ type VerifyOtpPayload = {
 
 type ResendOtpPayload = {
   email: string;
-  type?: "signup" | "resend_verification" | "forgot_password";
+  phone?: string;
+  type?: "signup" | "phone" | "resend_verification" | "forgot_password";
 };
 
 type ApiMessageResponse = {
@@ -66,6 +67,7 @@ export const resendOtp = (payload: ResendOtpPayload) =>
     body: JSON.stringify({
       email: payload.email,
       type: payload.type ?? "signup",
+      ...(payload.type === "phone" && payload.phone ? { phone: payload.phone } : {}),
     }),
   });
 

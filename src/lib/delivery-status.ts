@@ -3,7 +3,7 @@ const normalizeStatus = (status: string) =>
 
 export const formatDeliveryStatusLabel = (status?: string) => {
   const normalized = normalizeStatus(status ?? "");
-  if (!normalized) return "Pending";
+  if (!normalized) return "Status unavailable";
 
   const map: Record<string, string> = {
     requested: "Requested",

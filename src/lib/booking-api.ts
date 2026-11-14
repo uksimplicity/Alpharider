@@ -73,7 +73,7 @@ export function validateRideDraft(draft: RideDraft, now = Date.now()): string {
   }
   return "";
 }
-export function buildRidePayload(draft: RideDraft, customerId: string) {
+export function buildRidePayload(draft: RideDraft, customerId: string, contact = "") {
   const error = validateRideDraft(draft);
   if (error) throw new Error(error);
   if (!customerId.trim()) throw new Error("Your profile is missing a customer identifier.");
@@ -81,7 +81,7 @@ export function buildRidePayload(draft: RideDraft, customerId: string) {
   if (draft.scheduledFor) notes.push(`Scheduled for: ${new Date(draft.scheduledFor).toISOString()}`);
   return {
     customer_id: customerId, pickup_address: draft.pickup.trim(), dropoff_address: draft.dropoff.trim(),
-    pickup_contact: "Rider", dropoff_contact: "Rider",
+    ...(contact.trim() ? { pickup_contact: contact.trim(), dropoff_contact: contact.trim() } : {}),
     pickup_lat: Number(draft.pickupLat), pickup_lng: Number(draft.pickupLng),
     dropoff_lat: Number(draft.dropoffLat), dropoff_lng: Number(draft.dropoffLng),
     items: [{ name: "Ride", quantity: 1 }], notes: notes.join(" | "),
@@ -95,7 +95,7 @@ export async function createRide(token: string, draft: RideDraft): Promise<Ride>
   const profile = { ...record(raw), ...unwrapRecord(raw) };
   const customerId = [profile.id, profile._id, profile.user_id, profile.customer_id]
     .find(value => typeof value === "string" && value.trim());
-  const payload = buildRidePayload(draft, typeof customerId === "string" ? customerId : "");
+  const payload = buildRidePayload(draft, typeof customerId === "string" ? customerId : "", typeof profile.phone === "string" ? profile.phone : "");
   const response = await requestJson<unknown>(API_ENDPOINTS.riderApp.deliveries, {
     method: "POST", headers: auth(token), body: JSON.stringify(payload),
   });

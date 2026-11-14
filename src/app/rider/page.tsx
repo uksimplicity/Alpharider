@@ -1,250 +1,29 @@
-"use client";
-
+﻿"use client";
 import Link from "next/link";
-import { type FormEvent, useEffect, useState } from "react";
-import {
-  getRiderProfile,
-  registerRider,
-  updateRiderLocation,
-  updateRiderStatus,
-} from "@/lib/services";
+import { useState } from "react";
+import RiderShell, { Message, riderStyles as styles } from "@/app/components/RiderShell";
+import RiderAvailability from "@/app/components/RiderAvailability";
+import { useBackend, useWrite } from "@/lib/hooks/use-backend";
+import { accountRequest } from "@/lib/account-client";
+import { normalizeProfile, profileName, record, text, unwrap } from "@/lib/backend-data";
 
 export default function RiderPage() {
-  const [vehicleType, setVehicleType] = useState("");
-  const [vehicleNumber, setVehicleNumber] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
-  const [documentsText, setDocumentsText] = useState("");
-  const [riderStatus, setRiderStatus] = useState<"available" | "busy" | "offline">(
-    "offline"
-  );
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-
-  const canRegister = vehicleType.trim() && vehicleNumber.trim();
-
-  useEffect(() => {
-    const loadRiderProfile = async () => {
-      const token = localStorage.getItem("alpharider_token");
-      if (!token) return;
-
-      try {
-        await getRiderProfile(token);
-      } catch {
-        // Keep page usable even if profile endpoint is unavailable.
-      }
-    };
-
-    void loadRiderProfile();
-  }, []);
-
-  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!canRegister || isLoading) return;
-
-    const token = localStorage.getItem("alpharider_token");
-    if (!token) {
-      setErrorMessage("Please log in first.");
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage("");
-    setStatusMessage("");
-
-    try {
-      const documents = documentsText
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-      await registerRider(token, {
-        vehicle_type: vehicleType.trim(),
-        vehicle_number: vehicleNumber.trim(),
-        vehicle_model: vehicleModel.trim() || undefined,
-        documents: documents.length > 0 ? documents : undefined,
-      });
-      setStatusMessage("Rider profile submitted successfully.");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to register rider profile right now."
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  const profile = useBackend("/user/profile"), rider = useBackend("/rider/profile"), save = useWrite(), locationSave = useWrite();
+  const [vehicleType, setVehicleType] = useState(""), [vehicleNumber, setVehicleNumber] = useState(""), [vehicleModel, setVehicleModel] = useState(""), [documents, setDocuments] = useState("");
+  const [latitude, setLatitude] = useState(""), [longitude, setLongitude] = useState(""), [locating, setLocating] = useState(false), [locationError, setLocationError] = useState(""), [success, setSuccess] = useState("");
+  let user = {}, profileError = profile.error;
+  try { if (profile.data) user = normalizeProfile(profile.data); } catch (cause) { profileError = cause instanceof Error ? cause.message : "Could not read profile."; }
+  const details = { ...unwrap(rider.data), ...record(unwrap(rider.data).rider) }, person = record(user);
+  const saveLocation = () => {
+    if (!latitude.trim() || !longitude.trim() || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180) { setLocationError("Enter valid latitude (-90 to 90) and longitude (-180 to 180)."); return; }
+    setLocationError(""); void locationSave.run(async () => { await accountRequest("/rider/location", { method: "POST", body: JSON.stringify({ latitude: Number(latitude), longitude: Number(longitude) }) }); setSuccess("Location saved."); rider.refresh(); });
   };
-
-  const handleStatusUpdate = async () => {
-    const token = localStorage.getItem("alpharider_token");
-    if (!token) {
-      setErrorMessage("Please log in first.");
-      return;
-    }
-
-    try {
-      await updateRiderStatus(token, riderStatus);
-      setStatusMessage("Rider status updated.");
-      setErrorMessage("");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to update rider status."
-      );
-    }
-  };
-
-  const handleLocationUpdate = async () => {
-    const token = localStorage.getItem("alpharider_token");
-    if (!token) {
-      setErrorMessage("Please log in first.");
-      return;
-    }
-    if (!latitude.trim() || !longitude.trim()) {
-      setErrorMessage("Latitude and longitude are required.");
-      return;
-    }
-
-    try {
-      await updateRiderLocation(token, {
-        latitude: Number(latitude),
-        longitude: Number(longitude),
-      });
-      setStatusMessage("Rider location updated.");
-      setErrorMessage("");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to update rider location."
-      );
-    }
-  };
-
-  return (
-    <div className="shell">
-      <header className="shell-header">
-        <h1>Rider Hub</h1>
-        <p>Everything you need before going online.</p>
-      </header>
-
-      <div className="card-grid">
-        <div className="card">
-          <h2>Shift status</h2>
-          <p className="metric">{riderStatus}</p>
-          <p className="subtext">Update your availability below.</p>
-          <div className="input-group">
-            <select
-              value={riderStatus}
-              onChange={(event) =>
-                setRiderStatus(
-                  event.target.value as "available" | "busy" | "offline"
-                )
-              }
-            >
-              <option value="available">available</option>
-              <option value="busy">busy</option>
-              <option value="offline">offline</option>
-            </select>
-          </div>
-          <button className="button primary" type="button" onClick={handleStatusUpdate}>
-            Update Status
-          </button>
-        </div>
-        <div className="card">
-          <h2>Rider Location</h2>
-          <div className="input-group">
-            <input
-              type="number"
-              step="any"
-              placeholder="Latitude"
-              value={latitude}
-              onChange={(event) => setLatitude(event.target.value)}
-            />
-          </div>
-          <div className="input-group" style={{ marginTop: "8px" }}>
-            <input
-              type="number"
-              step="any"
-              placeholder="Longitude"
-              value={longitude}
-              onChange={(event) => setLongitude(event.target.value)}
-            />
-          </div>
-          <button
-            className="button primary"
-            type="button"
-            style={{ marginTop: "10px" }}
-            onClick={handleLocationUpdate}
-          >
-            Update Location
-          </button>
-        </div>
-      </div>
-
-      <section className="form-card" style={{ marginTop: "20px" }}>
-        <h2>Complete Rider Registration</h2>
-        <form onSubmit={handleRegisterSubmit} className="auth-form">
-          <label>
-            Vehicle Type
-            <input
-              type="text"
-              placeholder="bike, car, van..."
-              value={vehicleType}
-              onChange={(event) => setVehicleType(event.target.value)}
-            />
-          </label>
-          <label>
-            Vehicle Number
-            <input
-              type="text"
-              placeholder="Plate number"
-              value={vehicleNumber}
-              onChange={(event) => setVehicleNumber(event.target.value)}
-            />
-          </label>
-          <label>
-            Vehicle Model (Optional)
-            <input
-              type="text"
-              placeholder="Model"
-              value={vehicleModel}
-              onChange={(event) => setVehicleModel(event.target.value)}
-            />
-          </label>
-          <label>
-            Documents URLs (Optional)
-            <input
-              type="text"
-              placeholder="https://... , https://..."
-              value={documentsText}
-              onChange={(event) => setDocumentsText(event.target.value)}
-            />
-          </label>
-          <button
-            className="button primary"
-            type="submit"
-            disabled={!canRegister || isLoading}
-          >
-            {isLoading ? "Submitting..." : "Submit Rider Profile"}
-          </button>
-          {errorMessage ? (
-            <p className="helper danger" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
-          {statusMessage ? <p className="helper met">{statusMessage}</p> : null}
-        </form>
-      </section>
-
-      <Link className="text-link" href="/dashboard">
-        Go to dashboard
-      </Link>
-    </div>
-  );
+  return <RiderShell><h1>Your rider profile</h1><section className={styles.card}><Message error={profileError} />{profile.loading ? <p>Loading profile…</p> : <><h2>{profileName(person) || "Account details"}</h2>{person.profile_picture ? <img className={styles.avatar} src={text(person.profile_picture)} alt="Your profile" /> : null}<p>{text(person.email, "Email unavailable")}</p><p>{text(person.phone, "Phone unavailable")}</p><p>{[person.address, person.city, person.state, person.country].map(value => text(value)).filter(Boolean).join(", ") || "No address saved."}</p><Link className={styles.link} href="/user/edit-profile?returnTo=rider">Edit profile</Link></>}<button onClick={() => { profile.refresh(); rider.refresh(); }}>Refresh profile</button></section>
+    <RiderAvailability />
+    <section className={styles.card}><h2>Vehicle & verification</h2><Message error={rider.error} />{rider.loading ? <p>Loading rider registration…</p> : <><p>Vehicle: {[details.vehicle_type, details.vehicle_model, details.vehicle_number].map(value => text(value)).filter(Boolean).join(" · ") || "No vehicle returned."}</p><p>Verification: {text(details.verification_status ?? details.kyc_status ?? (typeof details.is_verified === "boolean" ? details.is_verified ? "Verified" : "Awaiting verification" : ""), "Not returned by the service")}</p></>}
+      <form className={styles.form} onSubmit={event => { event.preventDefault(); if (!vehicleType.trim() || !vehicleNumber.trim()) return; const links = documents.split(/[,\n]/).map(value => value.trim()).filter(Boolean); if (links.some(url => { try { return !["https:", "http:"].includes(new URL(url).protocol); } catch { return true; } })) { setLocationError("Document links must be valid web URLs."); return; } void save.run(async () => { await accountRequest("/rider/kyc", { method: "POST", body: JSON.stringify({ vehicle_type: vehicleType.trim(), vehicle_number: vehicleNumber.trim(), ...(vehicleModel.trim() ? { vehicle_model: vehicleModel.trim() } : {}), ...(links.length ? { documents: links } : {}) }) }); setSuccess("Rider registration submitted."); rider.refresh(); }); }}>
+        <label>Vehicle type<input required value={vehicleType} onChange={event => setVehicleType(event.target.value)} /></label><label>Plate number<input required value={vehicleNumber} onChange={event => setVehicleNumber(event.target.value)} /></label><label>Vehicle model (optional)<input value={vehicleModel} onChange={event => setVehicleModel(event.target.value)} /></label><label>Document URLs (optional, comma separated)<textarea value={documents} onChange={event => setDocuments(event.target.value)} /></label><button className={styles.primary} disabled={save.busy || save.uncertain}>{save.busy ? "Submitting…" : "Submit rider registration"}</button><Message error={save.error} uncertain={save.uncertain} /></form>
+    </section>
+    <section className={styles.card}><h2>Your current location</h2><p className={styles.muted}>Use your actual location for delivery matching.</p><div className={styles.form}><label>Latitude<input type="number" step="any" min="-90" max="90" value={latitude} onChange={event => setLatitude(event.target.value)} /></label><label>Longitude<input type="number" step="any" min="-180" max="180" value={longitude} onChange={event => setLongitude(event.target.value)} /></label></div><div className={styles.actions}><button disabled={locating} onClick={() => { if (!navigator.geolocation) { setLocationError("Location is not supported in this browser."); return; } setLocating(true); navigator.geolocation.getCurrentPosition(position => { setLatitude(String(position.coords.latitude)); setLongitude(String(position.coords.longitude)); setLocating(false); setLocationError(""); }, error => { setLocationError(error.message); setLocating(false); }, { enableHighAccuracy: true, timeout: 15000 }); }}>{locating ? "Locating…" : "Use my location"}</button><button disabled={locationSave.busy || locationSave.uncertain} onClick={saveLocation}>Save location</button></div><Message error={locationError || locationSave.error} uncertain={locationSave.uncertain} /></section>{success ? <p role="status">{success}</p> : null}
+  </RiderShell>;
 }
-

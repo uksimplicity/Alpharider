@@ -80,10 +80,8 @@ export default function VerifyPage() {
   const canVerify = otp.every((digit) => digit !== "");
   const canResend = secondsLeft === 0;
 
-  const verificationIdentity =
-    verificationMode === "phone"
-      ? pendingPhone || pendingEmail
-      : pendingEmail || pendingPhone;
+  // Both documented endpoints identify the account by its registered email.
+  const verificationIdentity = pendingEmail;
 
   const handleVerify = async () => {
     if (!canVerify || isSubmitting) return;
@@ -138,7 +136,8 @@ export default function VerifyPage() {
     try {
       await resendOtp({
         email: verificationIdentity,
-        type: "resend_verification",
+        type: verificationMode === "phone" ? "phone" : "resend_verification",
+        ...(verificationMode === "phone" && pendingPhone ? { phone: pendingPhone } : {}),
       });
       setSecondsLeft(30);
       setStatusMessage("A new OTP has been sent.");
@@ -161,21 +160,21 @@ export default function VerifyPage() {
         </div>
         <h1>Verify your account</h1>
         <p className="auth-subtitle">
-          Enter OTP sent to your email and phone number
+          Enter the code sent for your selected verification method.
         </p>
 
         <div className="sheet-actions">
           <button
             className={`sheet-btn ${verificationMode === "email" ? "primary" : "outline"}`}
             type="button"
-            onClick={() => setVerificationMode("email")}
+            onClick={() => { setVerificationMode("email"); setOtp(Array(6).fill("")); setErrorMessage(""); }}
           >
             Verify Email
           </button>
           <button
             className={`sheet-btn ${verificationMode === "phone" ? "primary" : "outline"}`}
             type="button"
-            onClick={() => setVerificationMode("phone")}
+            onClick={() => { setVerificationMode("phone"); setOtp(Array(6).fill("")); setErrorMessage(""); }}
           >
             Verify Phone
           </button>

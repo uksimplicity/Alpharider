@@ -1,4 +1,4 @@
-import { requestJson, requestJsonWithFallback } from "./api";
+import { requestJson } from "./api";
 import { API_ENDPOINTS } from "./endpoints";
 
 export type RegisterRiderPayload = {
@@ -16,8 +16,8 @@ export const registerRider = (
   token: string,
   payload: RegisterRiderPayload
 ) => {
-  return requestJsonWithFallback<Record<string, unknown>>(
-    [API_ENDPOINTS.rider.register, API_ENDPOINTS.legacy.rider.register],
+  return requestJson<Record<string, unknown>>(
+    API_ENDPOINTS.rider.register,
     {
       method: "POST",
       headers: withAuthHeaders(token),
@@ -36,8 +36,8 @@ export const updateRiderStatus = (
   token: string,
   status: "available" | "busy" | "offline"
 ) =>
-  requestJsonWithFallback<Record<string, unknown>>(
-    [API_ENDPOINTS.rider.status, API_ENDPOINTS.legacy.rider.status],
+  requestJson<Record<string, unknown>>(
+    API_ENDPOINTS.rider.status,
     {
       method: "PUT",
       headers: withAuthHeaders(token),

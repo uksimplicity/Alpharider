@@ -26,6 +26,8 @@ test("ride payload preserves real pins and mobile items/notes contract", () => {
   assert.deepEqual(payload.items, [{ name: "Ride", quantity: 1 }]);
   assert.match(payload.notes, /Ride type: Basic \| Ride note: By the gate/);
   assert.equal("fare" in payload, false);
+  assert.equal("pickup_contact" in payload, false);
+  assert.equal(buildRidePayload(draft(), "customer-1", "+2348000000000").pickup_contact, "+2348000000000");
 });
 test("missing/invalid pins and identical locations cannot be submitted", () => {
   for (const values of [{ pickupLat: "" }, { dropoffLng: "181" }, { pickupLat: "NaN" }, { pickupLat: "91" }, { dropoff: "Airport Road" }, { dropoffLat: "6.58", dropoffLng: "3.32" }]) {

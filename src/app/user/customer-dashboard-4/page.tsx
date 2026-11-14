@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import MobilityShell, { MobilityIcon } from "@/app/components/MobilityShell";
 import { getUserProfile, type UserProfile } from "@/lib/user-api";
 import { clearAuthSession } from "@/lib/session";
+import { checkSession } from "@/lib/account-client";
 
 const links = [
   { label: "Edit profile", text: "Keep your contact details up to date", href: "/user/edit-profile" },
@@ -22,10 +23,11 @@ export default function AccountPage() {
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     const token = localStorage.getItem("alpharider_token");
-    if (!token) return;
+    if (!token) { setLoading(false); setError("Please sign in to view your profile."); return; }
     setLoading(true); setError("");
     try {
       const value = await getUserProfile(token);
+      checkSession(token);
       setProfile(value);
       const name = [value.first_name, value.last_name].filter(Boolean).join(" ");
       if (name) localStorage.setItem("alpharider_display_name", name);

@@ -29,15 +29,15 @@ const isRecentlyDeliveredStatus = (status?: string) => {
   return normalized.includes("delivered") || normalized.includes("completed");
 };
 
-const normalizeDelivery = (item: DeliveryRecord, index: number): UiDelivery => {
+const normalizeDelivery = (item: DeliveryRecord): UiDelivery => {
   const statusLabel = formatDeliveryStatusLabel(item.status);
   const timeSource = item.updated_at ?? item.created_at ?? "";
   const timeLabel = timeSource
     ? new Date(timeSource).toLocaleString()
-    : "Just now";
+    : "Date unavailable";
 
   return {
-    id: extractDeliveryId(item, `DEL-${index + 1}`),
+    id: extractDeliveryId(item),
     status: statusLabel,
     tone: getDeliveryStatusTone(item.status),
     destination: item.dropoff_address ?? "Destination",
@@ -65,7 +65,7 @@ export default function UserDeliveryEmptyPage() {
 
       try {
         const deliveries = await getMyDeliveries(token);
-        setItems(deliveries.map(normalizeDelivery));
+        setItems(deliveries.filter(item => extractDeliveryId(item)).map(normalizeDelivery));
       } catch (error) {
         setErrorMessage(
           error instanceof Error

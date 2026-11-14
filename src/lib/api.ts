@@ -27,16 +27,10 @@ const toErrorMessage = (payload: unknown, fallback: string) => {
   }
 
   if (payload && typeof payload === "object") {
-    const candidate =
-      "message" in payload
-        ? payload.message
-        : "error" in payload
-        ? payload.error
-        : "detail" in payload
-        ? payload.detail
-        : undefined;
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate;
+    for (const key of ["message", "error", "detail"]) {
+      const candidate = (payload as Record<string, unknown>)[key];
+      if (typeof candidate === "string" && candidate.trim()) return candidate;
+      if (candidate && typeof candidate === "object" && "message" in candidate && typeof candidate.message === "string") return candidate.message;
     }
   }
 
@@ -60,6 +54,9 @@ export async function requestJson<T>(
   const response = await fetch(resolveUrl(path), {
     ...init,
     headers,
+    cache: init.cache ?? "no-store",
+    redirect: "error",
+    signal: init.signal ?? AbortSignal.timeout(25000),
   });
 
   const rawBody = await response.text();
@@ -69,11 +66,11 @@ export async function requestJson<T>(
     try {
       body = JSON.parse(rawBody) as unknown;
     } catch {
-      body = rawBody;
+      throw new ApiError("The server returned an unreadable response. Check the current record before trying again.", 502, null);
     }
   }
 
-  if (!response.ok) {
+  if (!response.ok || (body && typeof body === "object" && "success" in body && body.success === false)) {
     throw new ApiError(
       toErrorMessage(body, `Request failed (${response.status})`),
       response.status,
