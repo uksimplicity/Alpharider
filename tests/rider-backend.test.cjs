@@ -116,18 +116,18 @@ test('phone verification identifies the account by email and phone resends use t
 test('going online saves actual device coordinates before availability; going offline does not request location', async () => {
   global.localStorage = { getItem: () => 'token' }; let geoCalls = 0;
   Object.defineProperty(global, 'navigator', { configurable: true, value: { geolocation: { getCurrentPosition: success => { geoCalls++; success({ coords: { latitude: 6.58, longitude: 3.32 } }); } } } });
-  const calls = []; global.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return json({ success: true }); };
+  const calls = []; global.fetch = async (url, init) => { if (url.endsWith('/rider/profile')) return json({ data: { rider: { is_verified: true, status: 'offline' } } }); calls.push({ url, body: JSON.parse(init.body) }); return json({ success: true }); };
   await location.setAvailabilityFromDevice('available');
   assert.ok(calls[0].url.endsWith('/rider/location')); assert.deepEqual(calls[0].body, { latitude: 6.58, longitude: 3.32 });
   assert.ok(calls[1].url.endsWith('/rider/go-online')); assert.deepEqual(calls[1].body, { status: 'available' });
   await location.setAvailabilityFromDevice('offline'); assert.equal(geoCalls, 1); assert.deepEqual(calls[2].body, { status: 'offline' });
 });
 test('denied location or an account change while locating prevents going online', async () => {
-  let token = 'one', callback, calls = 0; global.localStorage = { getItem: () => token }; global.fetch = async () => { calls++; return json({ success: true }); };
+  let token = 'one', callback, calls = 0; global.localStorage = { getItem: () => token }; global.fetch = async url => { if (url.endsWith('/rider/profile')) return json({ data: { rider: { is_verified: true } } }); calls++; return json({ success: true }); };
   Object.defineProperty(global, 'navigator', { configurable: true, value: { geolocation: { getCurrentPosition: (success, error) => error({ code: 1 }) } } });
   await assert.rejects(location.setAvailabilityFromDevice('available'), /Allow location access/); assert.equal(calls, 0);
   navigator.geolocation.getCurrentPosition = success => { callback = success; };
-  const pending = location.setAvailabilityFromDevice('available'); token = 'two'; callback({ coords: { latitude: 6, longitude: 3 } });
+  const pending = location.setAvailabilityFromDevice('available'); await new Promise(setImmediate); token = 'two'; callback({ coords: { latitude: 6, longitude: 3 } });
   await assert.rejects(pending, /account changed/); assert.equal(calls, 0);
 });
 test('document uploads reuse successful uploads when a later file fails and retain the correct folder', async () => {

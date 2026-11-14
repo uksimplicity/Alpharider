@@ -39,6 +39,24 @@ Checked against the public and rider Swagger documents on 14 November 2026:
 
 ## Data and failure handling
 
+Rider account signup and `/user/profile` are separate from rider registration.
+`POST /rider/kyc` creates the rider registration for admin review. A missing
+`GET /rider/profile` record directs the rider to registration rather than offering
+online/offline controls. The backend's explicit `Rider profile not found` error is
+also recognized when returned as a business failure, 400 or 500; unrelated errors
+and authentication failures retain their error state.
+
+Admin rider approval is checked independently of email verification and
+availability. Missing, pending, rejected, suspended or unknown approval blocks
+going online, incoming job requests, job acceptance/progress and automatic GPS
+reporting. Each operating action checks the current rider record again. Only
+explicit approval on the rider record unlocks operations; nested `user` account
+verification is ignored. Swagger describes profile responses as generic
+`APIResponse`, so omitted approval information stays locked instead of being
+guessed from an available/offline status. These changes add web-side checks and
+onboarding guidance; API-side approval permissions were not changed or tested
+with live operations.
+
 Removed delivery/upload mock paths and the mock route, sample notifications/chat,
 hardcoded balances, fees, rider ratings/names, marketing metrics, and artificial
 delivery IDs. Missing amounts are unavailable rather than zero. Malformed

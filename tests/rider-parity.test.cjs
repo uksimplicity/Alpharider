@@ -8,16 +8,20 @@ const actionsPath = require.resolve('../src/lib/rider-job-actions.ts');
 const actions = require(actionsPath);
 const { performReviewedAction, needsActionReview, reviewAction } = require('../src/lib/reviewed-action.ts');
 const { loadRiderInbox } = require('../src/lib/rider-inbox.ts');
+const { riderAccess, riderProfileMissing, getRiderAccess } = require('../src/lib/rider-access.ts');
+const { setAvailabilityFromDevice } = require('../src/lib/rider-location.ts');
 const originalFetch = global.fetch, originalStorage = global.localStorage;
-let disk, token, account, job, writes, fail, sequence = 0;
+let disk, token, account, job, writes, fail, riderProfile, sequence = 0;
 const json = (data, status = 200) => new Response(JSON.stringify({ data }), { status });
 beforeEach(() => {
   disk = new Map(); token = 'parity-token-' + ++sequence; account = 'rider-' + sequence;
   job = { id: 'job1', status: 'requested', source: 'marketplace' }; writes = []; fail = 0;
+  riderProfile = { is_verified: true, status: 'offline' };
   global.localStorage = { getItem: key => key === 'alpharider_token' ? token : disk.get(key) ?? null, setItem: (key, value) => disk.set(key, value), removeItem: key => disk.delete(key) };
   global.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path.endsWith('/user/profile')) return json({ user: { id: account, email: account + '@example.test' } });
+    if (path.endsWith('/rider/profile')) return json({ rider: riderProfile });
     if (path.endsWith('/rider/deliveries/job1')) return json({ delivery: job });
     writes.push({ path, body: init.body ? JSON.parse(init.body) : null });
     if (fail) return new Response(JSON.stringify({ error: 'Write failed' }), { status: fail });
@@ -113,6 +117,7 @@ test('inbox includes assigned invitations and removes accepted, scheduled and ex
   global.fetch = async url => {
     const parsed = new URL(url);
     if (parsed.pathname.endsWith('/user/profile')) return json({ user: { id: account } });
+    if (parsed.pathname.endsWith('/rider/profile')) return json({ rider: riderProfile });
     if (parsed.pathname.endsWith('/requested')) return json([{ id: 'open', status: 'requested' }, { id: 'expired', status: 'requested', expires_at: '2000-01-01T00:00:00Z' }, { id: 'future', status: 'requested', scheduled_for: '2099-01-01T00:00:00Z' }]);
     assert.equal(parsed.searchParams.get('status'), 'assigned');
     return json([{ id: 'invitation', status: 'assigned', source: 'marketplace' }, { id: 'accepted', status: 'assigned', accepted_at: '2026-11-14T10:00:00Z' }]);
@@ -132,4 +137,40 @@ test('uncertain financial actions survive reopening and cannot replay until succ
 test('failure to persist a pending action prevents any job write', async () => {
   global.localStorage.setItem = () => { throw new Error('Storage disabled'); };
   await assert.rejects(actions.performJobAction('job1', 'accept'), /Storage disabled/); assert.equal(writes.length, 0);
+});
+
+test('rider approval is separate from availability and email verification, and unknown or conflicting approval stays locked', () => {
+  for (const payload of [{ data: { rider: { status: 'available' }, user: { is_verified: true } } }, { rider: { is_verified: false }, user: { is_verified: true } }, { rider: { is_verified: false, verification_status: 'approved' } }, { rider: { is_verified: 'true' } }]) assert.notEqual(riderAccess(payload).approval, 'approved');
+  assert.equal(riderAccess({ data: { rider: { is_verified: true, status: 'offline' } } }).approval, 'approved');
+  assert.equal(riderAccess({ data: { rider_profile: { verified: true } } }).approval, 'approved');
+  assert.equal(riderAccess({ profile: { rider: { approval_status: 'approved' } } }).approval, 'approved');
+  assert.equal(riderAccess({ rider: { is_verified: true, verification_status: 'suspended' } }).approval, 'suspended');
+  assert.equal(riderAccess({ rider: { verification_status: 'rejected' } }).approval, 'rejected');
+  assert.equal(riderAccess({ rider: { is_verified: true, approval_status: 'pending' } }).approval, 'pending');
+});
+test('missing rider registration is recognized without disguising sign-in failures or unrelated backend outages', async () => {
+  assert.equal(riderProfileMissing(500, 'Rider profile not found'), true);
+  assert.equal(riderProfileMissing(400, 'Rider profile not found'), true);
+  assert.equal(riderProfileMissing(401, 'Rider profile not found'), false);
+  assert.equal(riderProfileMissing(500, 'Database unavailable'), false);
+  global.fetch = async () => new Response(JSON.stringify({ error: 'Rider profile not found' }), { status: 404 });
+  assert.equal((await getRiderAccess()).approval, 'missing');
+  global.fetch = async () => new Response(JSON.stringify({ error: 'Database unavailable' }), { status: 500 });
+  await assert.rejects(getRiderAccess(), /Database unavailable/);
+});
+test('unapproved or unknown riders cannot go online, see incoming jobs, accept jobs or change job status', async () => {
+  for (const profile of [{ is_verified: false }, { status: 'available' }, { verification_status: 'rejected' }, { verification_status: 'suspended', is_verified: true }]) {
+    riderProfile = profile;
+    await assert.rejects(setAvailabilityFromDevice('available'), /approval|approved|suspended/);
+    await assert.rejects(loadRiderInbox(), /approval|approved|suspended/);
+    await assert.rejects(actions.performJobAction('job1', 'accept'), /approval|approved|suspended/);
+    await assert.rejects(actions.performJobAction('job1', 'picking_up'), /approval|approved|suspended/);
+  }
+  assert.equal(writes.length, 0);
+});
+test('approval is checked again on an operation after an earlier approved read', async () => {
+  assert.equal((await getRiderAccess()).approval, 'approved');
+  riderProfile.is_verified = false;
+  await assert.rejects(actions.performJobAction('job1', 'accept'), /awaiting admin approval/);
+  assert.equal(writes.length, 0);
 });

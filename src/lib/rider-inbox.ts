@@ -2,6 +2,7 @@ import { accountRequest, checkSession, currentToken } from "./account-client";
 import { rows, text, type Row } from "./backend-data";
 import { mergeRiderJobs, riderJob } from "./rider-job";
 import { reconcileJob } from "./rider-job-actions";
+import { requireApprovedRider } from "./rider-access";
 
 async function pages(path: string): Promise<Row[]> {
   const result: Row[] = [], seen = new Set<string>();
@@ -18,6 +19,7 @@ async function pages(path: string): Promise<Row[]> {
 }
 export async function loadRiderInbox() {
   const token = currentToken();
+  await requireApprovedRider(); checkSession(token);
   const [requested, assigned] = await Promise.all([pages("/rider/deliveries/requested"), pages("/rider/deliveries?status=assigned")]);
   checkSession(token);
   const jobs = mergeRiderJobs(requested, assigned);

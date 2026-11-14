@@ -5,8 +5,9 @@ import RiderShell, { Message, riderStyles as styles } from "@/app/components/Rid
 import RiderAvailability from "@/app/components/RiderAvailability";
 import { useBackend, useWrite } from "@/lib/hooks/use-backend";
 import { accountRequest, checkSession, currentToken } from "@/lib/account-client";
-import { normalizeProfile, profileName, record, text, unwrap } from "@/lib/backend-data";
+import { normalizeProfile, profileName, record, text } from "@/lib/backend-data";
 import { documentError, uploadRiderDocuments, type DocumentCache } from "@/lib/rider-documents";
+import { riderAccess, riderApprovalMessage, riderDetails, riderProfileMissing } from "@/lib/rider-access";
 
 export default function RiderPage() {
   const profile = useBackend("/user/profile"), rider = useBackend("/rider/profile"), save = useWrite();
@@ -15,11 +16,13 @@ export default function RiderPage() {
   const uploadCache = useRef<DocumentCache>(new Map());
   let user = {}, profileError = profile.error;
   try { if (profile.data) user = normalizeProfile(profile.data); } catch (cause) { profileError = cause instanceof Error ? cause.message : "Could not read profile."; }
-  const details = { ...unwrap(rider.data), ...record(unwrap(rider.data).rider) }, person = record(user);
+  const details = riderDetails(rider.data), person = record(user);
+  const missing = riderProfileMissing(rider.errorStatus, rider.error);
+  const approval = rider.data ? riderAccess(rider.data).approval : success ? "pending" : missing ? "missing" : null;
   const existingDocuments = Array.isArray(details.documents) ? details.documents.map(value => typeof value === "string" ? value : text(record(value).url)).filter(Boolean) : [];
   const registered = Boolean(rider.data) || Boolean(success);
   const submit = () => {
-    if (registered || rider.loading || rider.errorStatus !== 404 || !["Bike", "Car", "Van"].includes(vehicleType) || !vehicleNumber.trim()) return;
+    if (registered || rider.loading || !missing || !["Bike", "Car", "Van"].includes(vehicleType) || !vehicleNumber.trim()) return;
     const invalid = documents.map(documentError).find(Boolean);
     if (invalid) { setValidationError(invalid); return; }
     setValidationError(""); setSuccess("");
@@ -29,7 +32,8 @@ export default function RiderPage() {
       checkSession(token);
       const allDocuments = [...new Set([...existingDocuments, ...urls])];
       await accountRequest("/rider/kyc", { method: "POST", body: JSON.stringify({ vehicle_type: vehicleType.trim(), vehicle_number: vehicleNumber.trim(), ...(vehicleModel.trim() ? { vehicle_model: vehicleModel.trim() } : {}), ...(allDocuments.length ? { documents: allDocuments } : {}) }) });
-      setSuccess("Rider registration submitted."); setDocuments([]); uploadCache.current.clear(); rider.refresh();
+      setSuccess("Rider registration submitted. Await admin approval before going online or taking jobs."); setDocuments([]); uploadCache.current.clear(); rider.refresh();
+      window.dispatchEvent(new Event("alpharider:registration"));
     });
   };
   return <RiderShell>
@@ -40,11 +44,11 @@ export default function RiderPage() {
       <button onClick={() => { profile.refresh(); rider.refresh(); }}>Refresh profile</button>
     </section>
     <RiderAvailability />
-    <section className={styles.card}>
-      <h2>Vehicle & verification</h2><Message error={rider.errorStatus === 404 ? "" : rider.error} />
-      {rider.loading ? <p>Loading rider registration…</p> : <><p>Vehicle: {[details.vehicle_type, details.vehicle_model, details.vehicle_number].map(value => text(value)).filter(Boolean).join(" · ") || "No vehicle returned."}</p><p>Verification: {text(details.verification_status ?? details.kyc_status ?? (typeof details.is_verified === "boolean" ? details.is_verified ? "Verified" : "Awaiting verification" : ""), "Not returned by the service")}</p></>}
+    <section className={styles.card} id="rider-registration">
+      <h2>Vehicle & verification</h2><Message error={missing ? "" : rider.error} />
+      {rider.loading ? <p>Loading rider registration…</p> : <>{registered ? <p>Vehicle: {[details.vehicle_type, details.vehicle_model, details.vehicle_number].map(value => text(value)).filter(Boolean).join(" · ") || "No vehicle returned."}</p> : null}{approval ? <p role="status">{riderApprovalMessage(approval)}</p> : null}</>}
       {existingDocuments.length ? <p>{existingDocuments.length} document(s) already submitted.</p> : null}
-      {registered ? <p>Your rider registration has already been submitted.</p> : rider.errorStatus === 404 ? <form className={styles.form} onSubmit={event => { event.preventDefault(); submit(); }}>
+      {registered ? <p>Your rider registration has already been submitted.</p> : missing ? <form className={styles.form} onSubmit={event => { event.preventDefault(); submit(); }}>
         <label>Vehicle type<select required disabled={save.busy} value={vehicleType} onChange={event => setVehicleType(event.target.value)}><option value="">Choose vehicle type</option>{["Bike", "Car", "Van"].map(value => <option key={value}>{value}</option>)}</select></label>
         <label>Plate number<input required disabled={save.busy} value={vehicleNumber} onChange={event => setVehicleNumber(event.target.value)} /></label>
         <label>Vehicle model (optional)<input disabled={save.busy} value={vehicleModel} onChange={event => setVehicleModel(event.target.value)} /></label>

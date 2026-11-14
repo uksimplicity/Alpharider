@@ -50,6 +50,14 @@ screen, location reporter and payout review flow. No mobile files were changed.
 
 ## Backend and browser limits
 
+The web app additionally requires explicit admin approval on the rider profile
+before operating. Account/email verification and available/offline status are not
+rider approval. Missing rider registration opens the registration path; pending,
+rejected, suspended and unconfirmed approval keep operating controls locked.
+Approval is rechecked before online changes, inbox loading and job actions, and
+before foreground location reporting. Backend approval/authorization remains
+authoritative, including for clients outside this web app.
+
 Dispatch/search deadlines, automatic cancellation, admin escalation, dispatch
 radius and fee/escrow settlement belong to the backend. The web app observes
 returned expiry/schedule information; it does not fabricate server transitions.

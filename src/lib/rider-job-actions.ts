@@ -2,6 +2,7 @@ import { accountRequest, checkSession, currentToken } from "./account-client";
 import { ApiError, requestJson } from "./api";
 import { normalizeProfile, record, text, unwrap, type Row } from "./backend-data";
 import { riderJob } from "./rider-job";
+import { requireApprovedRider } from "./rider-access";
 
 export type JobReceipt = { accepted?: boolean; pending?: { action: string; from: string } };
 const accounts = new Map<string, Promise<string>>(), inFlight = new Set<string>();
@@ -50,6 +51,7 @@ export async function performJobAction(id: string, action: string, code = "") {
     if (inFlight.has(key)) throw new Error("This job is already being updated.");
     inFlight.add(key);
     try {
+      await requireApprovedRider(); checkSession(token);
       const payload = unwrap(await accountRequest(`/rider/deliveries/${encodeURIComponent(id)}`));
       const raw = record(payload.delivery ?? payload);
       const receipt = await reconcileJob(id, raw), job = riderJob(raw);

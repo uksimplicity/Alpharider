@@ -22,6 +22,7 @@ async function main() {
     Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition:(success,error)=>{if(__denyLocation)error({code:1});else success({coords:{latitude:6.58,longitude:3.32}});}}});
     window.__profile={id:'u1',first_name:'Ada',last_name:'Okafor',email:'ada@example.test',phone:'+2348000000000',address:'Actual saved address'};
     window.__rider={id:'r1',status:'offline',vehicle_type:'bike',vehicle_number:'ABC123',verification_status:'approved'};
+    if(sessionStorage.getItem('parity-rider'))Object.assign(__rider,JSON.parse(sessionStorage.getItem('parity-rider')));
     window.__delivery={id:'job1',status:'requested',pickup_address:'Airport Road',dropoff_address:'Ikeja',customer:{name:'Actual customer',phone:'+2348000000001'},created_at:'2026-11-14T08:00:00Z',delivery_fee:'2000'};
     if(sessionStorage.getItem('parity-job'))Object.assign(__delivery,JSON.parse(sessionStorage.getItem('parity-job')));
     window.__account={bank_code:'001',bank_name:'Test Bank',account_number:'0123456789',account_name:'Ada Okafor'};
@@ -40,7 +41,7 @@ async function main() {
       if(path==='/user/profile'){if(method==='PUT')Object.assign(__profile,body);return ok({user:__profile});}
       if(path==='/rider/profile')return __riderMissing?Response.json({error:'Rider profile not found'},{status:404}):ok({rider:__rider});
       if(path==='/rider/go-online'){Object.assign(__rider,body);return ok(__rider);}
-      if(path==='/rider/kyc'){__riderMissing=false;Object.assign(__rider,body);return ok(__rider);}
+      if(path==='/rider/kyc'){__riderMissing=false;Object.assign(__rider,body,{verification_status:'pending'});return ok(__rider);}
       if(path==='/rider/location')return ok(body);
       if(path==='/wallet/balance')return ok({balance:'25000'});
       if(path==='/wallet/stats')return ok({total_credits:30000,total_debits:5000});
@@ -92,6 +93,18 @@ async function main() {
     await evaluate(`__failure='/rider/go-online'`); await click('Go online'); await wait(`document.body.innerText.includes('Backend temporarily unavailable')`);
     assert.equal(await evaluate(`document.body.innerText.includes('Online — available')`), false);
     console.log('PASS rejected availability changes never appear successful');
+    await navigate('/dashboard'); await wait(`document.body.innerText.includes('Go online')`);
+    await evaluate(`__riderMissing=true;window.dispatchEvent(new Event('focus'))`);
+    await wait(`document.body.innerText.includes('Complete rider registration')`);
+    assert.equal(await evaluate(`document.body.innerText.includes('Rider profile not found')||Boolean(document.querySelector('[role="switch"]'))||[...document.querySelectorAll('button')].some(b=>b.textContent==='Set online')`),false);
+    assert.equal(await evaluate(`Boolean(document.querySelector('[aria-label="Location sharing"]'))`),false);
+    await evaluate(`__riderMissing=false;__rider.verification_status='pending';__rider.status='available';__rider.user={is_verified:true};window.dispatchEvent(new Event('focus'));`);
+    await wait(`document.body.innerText.includes('awaiting admin approval')`);
+    assert.equal(await evaluate(`Boolean(document.querySelector('[role="switch"]'))||document.body.innerText.includes('Airport Road')`),false);
+    assert.equal(await evaluate(`__writes.length`),0);
+    await evaluate(`__rider.verification_status='approved';__rider.status='offline';window.dispatchEvent(new Event('focus'));`);
+    await wait(`document.body.innerText.includes('Go online')`);
+    console.log('PASS missing rider registration is guided and pending approval cannot enable availability or GPS');
     await navigate('/rider'); await wait(`document.body.innerText.includes('Actual saved address')&&document.body.innerText.includes('ABC123')`);
     assert.equal(await evaluate(`document.body.innerText.includes('Latitude')||document.body.innerText.includes('Longitude')||document.body.innerText.includes('Document URLs')`),false);
     assert.equal(await evaluate('Boolean(document.querySelector("input[type=file]"))'),false);
@@ -101,6 +114,8 @@ async function main() {
     await wait(`document.body.innerText.includes('license.pdf')&&document.body.innerText.includes('vehicle.png')`);
     await evaluate(`document.querySelector('[aria-label="Remove vehicle.png"]').click()`);
     await click('Submit rider registration'); await wait(`document.body.innerText.includes('Rider registration submitted.')`);
+    await wait(`document.body.innerText.includes('awaiting admin approval')`);
+    assert.equal(await evaluate(`Boolean(document.querySelector('[role="switch"]'))||[...document.querySelectorAll('button')].some(b=>b.textContent==='Set online')`),false);
     assert.deepEqual(await evaluate(`__uploads`),[{name:'license.pdf',folder:'rider-documents'}]);
     assert.deepEqual(await evaluate(`__writes.find(w=>w.path==='/rider/kyc').body.documents`),['https://files.example.test/license.pdf']);
     console.log('PASS personal profile and rider vehicle details load independently');
@@ -155,6 +170,14 @@ async function main() {
     await input('Message','Real test reply'); await click('Send message'); await wait(`document.body.innerText.includes('Real test reply')`);
     assert.deepEqual(await evaluate(`__writes.find(w=>w.path.endsWith('/messages')).body`),{body:'Real test reply'});
     console.log('PASS delivery conversations and real message submission');
+    await evaluate(`sessionStorage.setItem('parity-rider',JSON.stringify({verification_status:'pending',status:'available'}));sessionStorage.setItem('parity-job',JSON.stringify({id:'approval1',status:'requested'}));`);
+    await navigate('/delivery/request?id=approval1'); await wait(`document.body.innerText.includes('awaiting admin approval')`);
+    assert.equal(await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Accept delivery').disabled`),true);
+    assert.equal(await evaluate(`__writes.length`),0);
+    await evaluate(`__rider.verification_status='approved';__rider.status='offline';window.dispatchEvent(new Event('focus'));`);
+    await wait(`[...document.querySelectorAll('button')].some(b=>b.textContent==='Accept delivery'&&!b.disabled)`);
+    await evaluate(`sessionStorage.removeItem('parity-rider')`);
+    console.log('PASS direct job URLs stay locked until backend rider approval is confirmed');
     await evaluate(`sessionStorage.setItem('parity-job',JSON.stringify({id:'passenger1',source:'rider_app',job_type:'passenger',status:'assigned',requires_acceptance:false}));`);
     await navigate('/delivery/request?id=passenger1'); await wait(`document.body.innerText.includes('Passenger ride')&&[...document.querySelectorAll('button')].some(b=>b.textContent==='Head to pickup'&&!b.disabled)`);
     await click('Head to pickup'); await wait(`[...document.querySelectorAll('button')].some(b=>b.textContent==='Start ride'&&!b.disabled)`);

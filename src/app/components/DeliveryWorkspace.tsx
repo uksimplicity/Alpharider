@@ -6,6 +6,7 @@ import { useBackend, useStoredQuery } from "@/lib/hooks/use-backend";
 import { date, money, record, text, unwrap } from "@/lib/backend-data";
 import { riderJob } from "@/lib/rider-job";
 import { performJobAction, reconcileJob, type JobReceipt } from "@/lib/rider-job-actions";
+import { riderAccess, riderApprovalMessage, riderProfileMissing } from "@/lib/rider-access";
 
 export default function DeliveryWorkspace() {
   const id = useStoredQuery("id", "alpharider_active_delivery_id");
@@ -13,6 +14,8 @@ export default function DeliveryWorkspace() {
   const [receipt, setReceipt] = useState<{ id: string; data: JobReceipt; error: string } | null>(null);
   const lock = useRef(false);
   const resource = useBackend(id ? `/rider/deliveries/${encodeURIComponent(id)}` : null, 20000);
+  const rider = useBackend("/rider/profile", 30000);
+  const approval = rider.data ? riderAccess(rider.data).approval : riderProfileMissing(rider.errorStatus, rider.error) ? "missing" : "unknown";
   const root = unwrap(resource.data), delivery = record(root.delivery ?? root), job = riderJob(delivery), customer = record(delivery.customer ?? delivery.user);
   useEffect(() => {
     let active = true;
@@ -24,7 +27,7 @@ export default function DeliveryWorkspace() {
   }, [id, resource.data]);
   const saved = receipt?.id === id ? receipt : null;
   const accepted = Boolean(saved?.data.accepted), needsAcceptance = job.needsAcceptance && !accepted;
-  const blocked = busy || resource.loading || Boolean(resource.error) || !saved || Boolean(saved.error) || Boolean(saved.data.pending) || job.expired || job.future || job.terminal;
+  const blocked = busy || rider.loading || approval !== "approved" || resource.loading || Boolean(resource.error) || !saved || Boolean(saved.error) || Boolean(saved.data.pending) || job.expired || job.future || job.terminal;
   const next = job.nextStatus(accepted);
   const act = async (action: string) => {
     if (blocked || lock.current) return;
@@ -46,6 +49,7 @@ export default function DeliveryWorkspace() {
         {delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}>{/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className={styles.link} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call customer</a> : null}<Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link><button disabled={busy} onClick={resource.refresh}>Refresh job</button></div>
       </section>
       <section className={styles.card}><h2>Job actions</h2><Message error={error || saved?.error || ""} />
+        {rider.loading ? <p>Checking rider approval…</p> : approval !== "approved" ? <p role="status">{riderApprovalMessage(approval)} <Link href="/rider#rider-registration">View rider registration</Link></p> : null}
         {saved?.data.pending ? <p role="alert">The previous action has not been confirmed. Refresh the job to check its status. If it remains unchanged, contact support before submitting again.</p> : null}
         {job.expired ? <p>This request is no longer available.</p> : job.future ? <p>This job is scheduled for a later time. It cannot be started yet.</p> : job.terminal ? <p>This job is {job.status}.</p> : null}
         <div className={styles.actions}>{needsAcceptance ? <button disabled={blocked} onClick={() => void act("accept")}>Accept {job.kind === "passenger" ? "ride" : "delivery"}</button> : null}

@@ -1,5 +1,6 @@
 import { accountRequest, checkSession, currentToken } from "./account-client";
 import type { Availability } from "./backend-data";
+import { requireApprovedRider } from "./rider-access";
 
 export class LocationAccessError extends Error {}
 let permissionGranted = false;
@@ -20,6 +21,7 @@ export function deviceLocation(): Promise<{ latitude: number; longitude: number 
 export async function setAvailabilityFromDevice(status: Availability) {
   const token = currentToken();
   if (status === "available") {
+    await requireApprovedRider(); checkSession(token);
     const location = await deviceLocation();
     checkSession(token);
     await accountRequest("/rider/location", { method: "POST", body: JSON.stringify(location) });

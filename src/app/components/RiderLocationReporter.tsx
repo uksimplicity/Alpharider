@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { accountRequest, checkSession, currentToken } from "@/lib/account-client";
-import { availability, record, unwrap } from "@/lib/backend-data";
+import { record, unwrap } from "@/lib/backend-data";
+import { getRiderAccess } from "@/lib/rider-access";
 import { deviceLocation, hasDeviceLocationPermission } from "@/lib/rider-location";
 import { riderJob } from "@/lib/rider-job";
 import { reconcileJob } from "@/lib/rider-job-actions";
@@ -17,8 +18,8 @@ export default function RiderLocationReporter({ activeDeliveryId }: { activeDeli
       try {
         const token = currentToken();
         const valid = () => { checkSession(token); if (!alive || generation !== version || document.visibilityState === "hidden") throw new Error("Location reporting paused."); };
-        const status = availability(await accountRequest("/rider/profile")); valid();
-        if (status !== "available" && status !== "busy") { if (alive) setError(""); return; }
+        const access = await getRiderAccess(); valid();
+        if (access.approval !== "approved" || (access.status !== "available" && access.status !== "busy")) { if (alive) setError(""); return; }
         if (!navigator.permissions && !hasDeviceLocationPermission()) { setError("Use Enable location sharing to allow automatic location updates while this page is open."); return; }
         if (navigator.permissions) {
           const permission = await navigator.permissions.query({ name: "geolocation" }); valid();
