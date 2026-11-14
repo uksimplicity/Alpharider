@@ -28,7 +28,6 @@ export default function VerifyPage() {
     }
     if (savedPendingPhone) {
       setPendingPhone(savedPendingPhone);
-      setVerificationMode("phone");
     }
   }, []);
 
