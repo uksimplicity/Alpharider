@@ -1889,6 +1889,12 @@ a {
     url("/hero-delivery.svg") center/cover;
 }
 
+.auth-page.signup-page {
+  height: auto;
+  overflow: visible;
+  padding: 24px 12px;
+}
+
 .auth-card {
   width: 100%;
   max-width: 360px;

@@ -1,10 +1,11 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { signupUser } from "@/lib/services";
+import { signupPasswordCriteria, signupValidationMessage } from "@/lib/signup-validation";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -19,36 +20,25 @@ export default function SignupPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const submissionLock = useRef(false);
+  const errorRef = useRef<HTMLParagraphElement>(null);
 
-  const criteria = useMemo(() => {
-    const hasLetter = /[A-Za-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-    const minLength = password.length >= 8;
-    return [
-      { label: "At least 8 characters", met: minLength },
-      { label: "Includes a letter", met: hasLetter },
-      { label: "Includes a number", met: hasNumber },
-      { label: "Includes a special character", met: hasSpecial },
-    ];
-  }, [password]);
+  useEffect(() => { if (errorMessage) errorRef.current?.focus(); }, [errorMessage]);
 
-  const isEmailValid = /\S+@\S+\.\S+/.test(email);
+  const criteria = signupPasswordCriteria(password);
   const isPasswordMatch = password.length > 0 && password === confirmPassword;
-  const allCriteriaMet = criteria.every((item) => item.met);
-  const canSubmit =
-    name.trim() &&
-    isEmailValid &&
-    phone.trim() &&
-    allCriteriaMet &&
-    isPasswordMatch &&
-    userCategory &&
-    acceptedTerms;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit || isLoading) return;
+    if (submissionLock.current) return;
+    const validationMessage = signupValidationMessage({ name, email, phone, password, confirmPassword, userCategory, acceptedTerms });
+    if (validationMessage) {
+      setErrorMessage(validationMessage);
+      errorRef.current?.focus();
+      return;
+    }
 
+    submissionLock.current = true;
     setIsLoading(true);
     setErrorMessage("");
 
@@ -61,13 +51,13 @@ export default function SignupPage() {
       const response = await signupUser({
         firstName,
         lastName,
-        email,
+        email: email.trim(),
         phone,
         password,
         role,
       });
 
-      localStorage.setItem("alpharider_pending_email", email);
+      localStorage.setItem("alpharider_pending_email", email.trim());
       localStorage.setItem("alpharider_pending_phone", phone);
       localStorage.setItem("alpharider_is_verified", "false");
 
@@ -81,13 +71,13 @@ export default function SignupPage() {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to sign up right now."
       );
-    } finally {
+      submissionLock.current = false;
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page signup-page">
       <div className="auth-card">
         <div className="auth-logo">
           <Image src="/logo.png" alt="AlphaRide" width={160} height={48} priority />
@@ -97,7 +87,7 @@ export default function SignupPage() {
           Sign up to start enjoying stress-free rides
         </p>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit} noValidate aria-busy={isLoading}>
           <label>
             Your Name
             <div className="input-group">
@@ -250,18 +240,18 @@ export default function SignupPage() {
             </span>
           </label>
 
+          {errorMessage ? (
+            <p className="helper danger" role="alert" ref={errorRef} tabIndex={-1}>
+              {errorMessage}
+            </p>
+          ) : null}
           <button
-            className={`auth-submit ${canSubmit && !isLoading ? "active" : ""}`}
+            className={`auth-submit ${!isLoading ? "active" : ""}`}
             type="submit"
-            disabled={!canSubmit || isLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Signing up..." : "Sign Up"}
           </button>
-          {errorMessage ? (
-            <span className="helper danger" role="alert">
-              {errorMessage}
-            </span>
-          ) : null}
         </form>
 
         <p className="auth-footer">
