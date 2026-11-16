@@ -49,6 +49,44 @@ test('schedule and expiry checks use actual backend fields and legacy schedule n
   assert.equal(riderJob({ status: 'requested', expires_at: '2026-11-14T09:59:00Z' }, now).expired, true);
   assert.equal(riderJob({ status: 'assigned', expires_at: '2026-11-14T09:59:00Z' }, now).expired, false);
 });
+
+test('request source labels preserve blank/unknown sources and recognize reported origins', () => {
+  for (const source of ['', 'unexpected_origin']) {
+    const result = riderJob({ source, order_id: 'marketplace-looking-order', status: 'requested' });
+    assert.equal(result.source, 'unknown');
+    assert.equal(result.sourceLabel, 'Source not reported');
+    assert.equal(result.needsAcceptance, true);
+  }
+  assert.equal(riderJob({ source: 'marketplace' }).sourceLabel, 'Marketplace');
+  assert.equal(riderJob({ delivery_source: 'marketplace' }).sourceLabel, 'Marketplace');
+  assert.equal(riderJob({ source: 'rider_app' }).sourceLabel, 'AlphaRide');
+});
+
+test('unassigned request detail uses rider authorization and backend denial prevents acceptance writes', async () => {
+  const detailPath = '/api/v1/rider/deliveries/job1';
+  const original = global.fetch;
+  let denied = true;
+  global.fetch = async (url, init = {}) => {
+    if (new URL(url).pathname === detailPath && !init.method) {
+      assert.equal(init.headers.Authorization, `Bearer ${token}`);
+      return denied
+        ? new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 404 })
+        : json({ delivery: { ...job, rider_id: null, source: '' } });
+    }
+    return original(url, init);
+  };
+  const { accountRequest } = require('../src/lib/account-client.ts');
+  await assert.rejects(accountRequest('/rider/deliveries/job1'), error => error.status === 404 && error.message === 'Unauthorized');
+  await assert.rejects(actions.performJobAction('job1', 'accept'), /Unauthorized/);
+  assert.equal(writes.length, 0);
+  denied = false;
+  const detail = await accountRequest('/rider/deliveries/job1');
+  assert.equal(detail.data.delivery.rider_id, null);
+  assert.equal(riderJob(detail.data.delivery).sourceLabel, 'Source not reported');
+  await actions.performJobAction('job1', 'accept');
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].path, '/api/v1/rider/deliveries/job1/accept');
+});
 test('assigned invitations require acceptance and package progress cannot skip pickup or delivery stages', () => {
   const invitation = riderJob({ status: 'assigned', source: 'marketplace' });
   assert.equal(invitation.needsAcceptance, true); assert.equal(invitation.nextStatus(), null);

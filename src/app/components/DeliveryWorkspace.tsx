@@ -7,6 +7,7 @@ import { date, money, record, text, unwrap } from "@/lib/backend-data";
 import { riderJob } from "@/lib/rider-job";
 import { performJobAction, reconcileJob, type JobReceipt } from "@/lib/rider-job-actions";
 import { riderAccess, riderApprovalMessage, riderProfileMissing } from "@/lib/rider-access";
+import DeliveryReviewError from "./DeliveryReviewError";
 
 export default function DeliveryWorkspace() {
   const id = useStoredQuery("id", "alpharider_active_delivery_id");
@@ -40,8 +41,8 @@ export default function DeliveryWorkspace() {
   const phone = text(delivery.pickup_contact ?? customer.phone), escrow = record(delivery.escrow);
   const activeDeliveryId = !needsAcceptance && !job.terminal && ["assigned", "picking_up", "on_the_way", "delivered"].includes(job.status) ? id : undefined;
   return <RiderShell activeDeliveryId={activeDeliveryId}><h1>{job.kind === "passenger" ? "Ride details" : "Delivery details"}</h1>
-    {!id ? <section className={styles.card}><p>Select a job to view its details.</p><Link href="/rider/deliveries">My jobs</Link></section> : resource.error ? <><Message error={resource.error} /><button onClick={resource.refresh}>Try again</button></> : !resource.data ? <p>Loading job…</p> : <>
-      <section className={styles.card}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status || "Status unavailable"}</span><h2>{text(delivery.reference ?? delivery.id, id)}</h2>
+    {!id ? <section className={styles.card}><p>Select a job to view its details.</p><Link href="/rider/deliveries">My jobs</Link></section> : resource.error ? <DeliveryReviewError id={id} error={resource.error} status={resource.errorStatus} retry={resource.refresh} className={styles.card} /> : !resource.data ? <p>Loading job…</p> : <>
+      <section className={styles.card}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status || "Status unavailable"}</span><h2>{text(delivery.delivery_number) || text(delivery.reference) || text(delivery.id) || id}</h2>
         <p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Customer:</strong> {text(customer.name ?? delivery.customer_name, "Not provided")}</p>{job.kind !== "passenger" ? <p><strong>Receiver:</strong> {text(delivery.receiver_name, "Not provided")}</p> : null}<p><strong>Created:</strong> {date(delivery.created_at)}</p>
         {job.scheduledFor ? <p><strong>Scheduled pickup:</strong> {date(new Date(job.scheduledFor).toISOString())}</p> : null}{job.expiresAt ? <p><strong>Request expires:</strong> {date(new Date(job.expiresAt).toISOString())}</p> : null}
         <p><strong>Fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p><p><strong>Payment method:</strong> {text(delivery.payment_method, "Not reported")}</p><p><strong>Payment status:</strong> {text(delivery.payment_status ?? delivery.paymentStatus, "Not reported")}</p><p><strong>Escrow:</strong> {text(delivery.escrow_status ?? delivery.escrowStatus ?? escrow.status, "Not reported")}</p>
