@@ -35,6 +35,18 @@ async function main() {
     await send('Page.addScriptToEvaluateOnNewDocument', { source: `
       localStorage.clear(); localStorage.setItem('alpharider_token', 'customer-test-token'); localStorage.setItem('alpharider_is_verified', 'true'); localStorage.setItem('alpharider_last_activity_at', String(Date.now()));
       window.__unexpected = []; window.__writes = []; window.__denyDetail = false;
+      window.__heldGeocode = null;
+      window.__maps = []; window.__denyGps = false;
+      Object.defineProperty(navigator, 'geolocation', {configurable:true,value:{getCurrentPosition(success,failure){setTimeout(()=>__denyGps ? failure({code:1}) : success({coords:{latitude:6.60,longitude:3.35}}),100);}}});
+      window.google = {maps:{
+        Map: class { constructor(element) { this.listeners = {}; __maps.push(this); element.textContent = 'Map preview'; } setCenter() {} addListener(event,callback) { this.listeners[event] = callback; return {remove(){}}; } },
+        Marker: class { constructor() {} setPosition() {} setVisible() {} setMap() {} addListener() { return {remove(){}}; } },
+        Geocoder: class { geocode(request, callback) {
+          const result = (latitude,longitude) => callback([{types:['street_address'],geometry:{location_type:'ROOFTOP',location:{lat:()=>latitude,lng:()=>longitude}}}], 'OK');
+          if (request.address === 'Old pickup') { __heldGeocode = () => result(1,2); return; }
+          request.address.includes('destination') ? result(6.60,3.35) : result(6.58,3.32);
+        }}
+      }};
       window.__delivery = { id:'d1', customer_id:'customer-1', status:'requested', pickup_address:'Test pickup', dropoff_address:'Test destination', delivery_fee:'522.98', updated_at:'2026-11-16T12:00:00Z' };
       const nativeFetch = window.fetch;
       window.fetch = async (input, init = {}) => {
@@ -76,13 +88,39 @@ async function main() {
     console.log('PASS customer notifications/support retain customer navigation and do not load rider availability/location');
     await navigate('/user/package-information-3');
     await wait(`document.querySelector('input[placeholder="Enter Pick up location"]') && [...document.querySelectorAll('input')].some(el => Object.keys(el).some(key => key.startsWith('__reactProps')))`);
-    await input('From', 'Test pickup'); await input('To', 'Test destination');
-    await input('Pickup latitude', '6.58'); await input('Pickup longitude', '3.32');
-    await input('Destination latitude', '6.60'); await input('Destination longitude', '3.35');
+    assert.equal(await evaluate(`document.body.innerText.toLowerCase().includes('latitude') || document.body.innerText.toLowerCase().includes('longitude')`), false);
+    await input('Pickup address', 'Old pickup'); await wait(`typeof __heldGeocode === 'function'`);
+    await input('Pickup address', 'Test pickup'); await input('Destination address', 'Test destination');
+    await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm pickup location')`);
+    await click('Confirm pickup location');
+    await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm destination location')`);
+    await click('Confirm destination location');
+    await click('Choose pickup on map'); await wait(`__maps.length === 1 && !!__maps[0].listeners.click`);
+    await evaluate(`__maps[0].listeners.click({latLng:{lat:()=>6.59,lng:()=>3.33}})`);
+    await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm pickup location')`);
+    await click('Confirm pickup location');
+    await evaluate(`__denyGps = true`); await click('Use my location for destination');
+    await wait(`document.body.innerText.includes('Allow location access')`);
+    assert.equal(await evaluate(`__writes.length`), 0);
+    await evaluate(`__denyGps = false`); await click('Use my location for destination');
+    await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm destination location')`);
+    await click('Confirm destination location');
+    await evaluate(`__heldGeocode()`);
+    await input('Pickup address', 'Edited pickup');
+    await evaluate(`document.querySelector('form').requestSubmit()`);
+    await wait(`document.querySelector('[role="alert"]')?.textContent.includes('Confirm the pickup location')`);
+    assert.equal(await evaluate(`__writes.length`), 0);
+    await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm pickup location')`);
+    await click('Confirm pickup location');
     await evaluate(`document.querySelector('form').requestSubmit(); document.querySelector('form').requestSubmit()`);
     await wait(`typeof __finishCreate === 'function'`);
     assert.equal(await evaluate(`__writes.length`), 1);
     assert.equal(await evaluate(`__writes[0].customer_id`), 'customer-1');
+    assert.equal(await evaluate(`__writes[0].pickup_lat`), 6.58);
+    assert.equal(await evaluate(`__writes[0].pickup_lng`), 3.32);
+    assert.equal(await evaluate(`__writes[0].dropoff_lat`), 6.60);
+    assert.equal(await evaluate(`__writes[0].dropoff_lng`), 3.35);
+    assert.equal(await evaluate(`__writes[0].pickup_address`), 'Edited pickup');
     assert.equal(await evaluate(`document.querySelector('button[type="submit"]').disabled`), true);
     await evaluate(`__finishCreate()`); await wait(`location.pathname === '/user/delivery-details' && location.search === '?id=d2'`);
     await wait(`document.body.innerText.includes('Test destination')`);
@@ -90,7 +128,7 @@ async function main() {
     assert.equal(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
     assert.deepEqual(await evaluate(`__unexpected`), []);
     assert.deepEqual(errors, []);
-    console.log('PASS package form submits once and opens matching customer tracking without overwriting a rider active-job reference');
+    console.log('PASS addresses resolve internally; edits invalidate locations; stale lookup is ignored; one package submission sends confirmed backend coordinates');
   } finally { await send('Page.close').catch(() => {}); socket.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

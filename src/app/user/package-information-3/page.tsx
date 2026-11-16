@@ -3,10 +3,12 @@
 import { type FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDelivery, extractDeliveryId, getUserProfile } from "@/lib/services";
-import { emptyRideDraft, normalizeRide, validateRideDraft } from "@/lib/booking-api";
+import { normalizeRide } from "@/lib/booking-api";
 import MobilityShell from "@/app/components/MobilityShell";
 import Link from "next/link";
 import { checkSession } from "@/lib/account-client";
+import PackageLocationField from "@/app/components/PackageLocationField";
+import { packageRoute, type PackageLocation } from "@/lib/package-location";
 
 export default function PackageInformationPage() {
   const router = useRouter();
@@ -18,7 +20,8 @@ export default function PackageInformationPage() {
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [coordinates, setCoordinates] = useState({ pickupLat: "", pickupLng: "", dropoffLat: "", dropoffLng: "" });
+  const [pickupPoint, setPickupPoint] = useState<PackageLocation | null>(null);
+  const [destinationPoint, setDestinationPoint] = useState<PackageLocation | null>(null);
   const [packageName, setPackageName] = useState("Package");
   const [quantity, setQuantity] = useState(1);
   const submissionLock = useRef(false);
@@ -46,8 +49,9 @@ export default function PackageInformationPage() {
       return;
     }
 
-    const locationError = validateRideDraft({ ...emptyRideDraft, ...coordinates, pickup: pickupAddress, dropoff: dropoffAddress });
-    if (locationError) { setErrorMessage(locationError); return; }
+    let route: ReturnType<typeof packageRoute>;
+    try { route = packageRoute(pickupAddress, dropoffAddress, pickupPoint, destinationPoint); }
+    catch (cause) { setErrorMessage(cause instanceof Error ? cause.message : "Confirm pickup and destination locations."); return; }
 
     setIsLoading(true);
     submissionLock.current = true;
@@ -61,12 +65,7 @@ export default function PackageInformationPage() {
       const response = await createDelivery(token, {
         customer_id: customerId,
         items: [{ name: packageName.trim() || "Package", quantity }],
-        pickup_address: pickupAddress.trim(),
-        pickup_lat: Number(coordinates.pickupLat),
-        pickup_lng: Number(coordinates.pickupLng),
-        dropoff_address: dropoffAddress.trim(),
-        dropoff_lat: Number(coordinates.dropoffLat),
-        dropoff_lng: Number(coordinates.dropoffLng),
+        ...route,
         receiver_name: receiverName.trim() || undefined,
         pickup_contact: pickupContact.trim() || undefined,
         other_contact: otherContact.trim() || undefined,
@@ -101,36 +100,9 @@ export default function PackageInformationPage() {
             <label><span>Quantity</span><input type="number" required min={1} max={100} step={1} value={quantity} onChange={event => setQuantity(Number(event.target.value))} /></label>
           </div>
           <div className="form-group">
-            <h2>Location</h2>
-            <label>
-              <span>From</span>
-              <input
-                type="text"
-                placeholder="Enter Pick up location"
-                value={pickupAddress}
-                onChange={(event) => setPickupAddress(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>To</span>
-              <input
-                type="text"
-                placeholder="Enter Destination"
-                value={dropoffAddress}
-                onChange={(event) => setDropoffAddress(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="form-group">
-            <h2>Exact locations</h2>
-            <p className="helper">Address search is not available yet. Copy each location’s coordinates from your map app.</p>
-            {[
-              { key: "pickupLat" as const, label: "Pickup latitude", max: 90 },
-              { key: "pickupLng" as const, label: "Pickup longitude", max: 180 },
-              { key: "dropoffLat" as const, label: "Destination latitude", max: 90 },
-              { key: "dropoffLng" as const, label: "Destination longitude", max: 180 },
-            ].map(field => <label key={field.key}><span>{field.label}</span><input required type="number" inputMode="decimal" min={-field.max} max={field.max} step="any" value={coordinates[field.key]} onChange={event => setCoordinates(current => ({ ...current, [field.key]: event.target.value }))} /></label>)}
+            <h2>Pickup and destination</h2>
+            <PackageLocationField label="Pickup" placeholder="Enter Pick up location" address={pickupAddress} point={pickupPoint} disabled={isLoading} onAddressChange={value => { setPickupAddress(value); setPickupPoint(null); setErrorMessage(""); }} onConfirm={point => { setPickupPoint(point); setErrorMessage(""); }} />
+            <PackageLocationField label="Destination" placeholder="Enter Destination" address={dropoffAddress} point={destinationPoint} disabled={isLoading} onAddressChange={value => { setDropoffAddress(value); setDestinationPoint(null); setErrorMessage(""); }} onConfirm={point => { setDestinationPoint(point); setErrorMessage(""); }} />
           </div>
           <div className="form-group">
             <h2>Receiver</h2>
