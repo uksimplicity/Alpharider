@@ -19,15 +19,15 @@ export function MobilityIcon({ name }: { name: "car" | "calendar" | "package" | 
 export default function MobilityShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   return <div className="mobility-app">
-    <header className="mobility-header"><Link href="/user/dashboard" aria-label="AlphaRide home"><Image src="/logo.png" width={140} height={40} alt="AlphaRide" style={{ objectFit: "contain" }} /></Link><Link className="mobility-account" href="/user/customer-dashboard-4"><MobilityIcon name="account" /><span>My account</span></Link></header>
+    <header className="mobility-header"><Link href="/user/dashboard" aria-label="AlphaRide home"><Image src="/logo.png" width={140} height={40} alt="AlphaRide" style={{ objectFit: "contain" }} /></Link><div className="mobility-header-links"><Link href="/user/notification">Notifications</Link><Link href="/user/wallet">Wallet</Link><Link className="mobility-account" href="/user/customer-dashboard-4"><MobilityIcon name="account" /><span>My account</span></Link></div></header>
     <main className="mobility-main">{children}</main>
     <nav className="mobility-nav" aria-label="Main navigation">
       {[
         { href: "/user/dashboard", label: "Home", icon: "home" as const },
-        { href: "/user/rides", label: "Your rides", icon: "car" as const },
-        { href: "/user/delivery", label: "Alpha Send", icon: "package" as const },
+        { href: "/user/delivery", label: "Deliveries", icon: "package" as const },
+        { href: "/user/package-information-3", label: "Send", icon: "arrow" as const },
         { href: "/user/customer-dashboard-4", label: "Account", icon: "account" as const },
-      ].map(item => <Link key={item.href} href={item.href} aria-current={path === item.href ? "page" : undefined}><MobilityIcon name={item.icon} /><span>{item.label}</span></Link>)}
+      ].map(item => { const active = path === item.href || (item.label === "Deliveries" && ["/user/delivery-details", "/user/delivery-summary", "/user/waiting", "/user/select-rider", "/user/order-successful", "/user/delivery-completed"].includes(path)) || (item.label === "Send" && ["/user/upload-picture", "/user/upload-picture-1"].includes(path)); return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}><MobilityIcon name={item.icon} /><span>{item.label}</span></Link>; })}
     </nav>
   </div>;
 }

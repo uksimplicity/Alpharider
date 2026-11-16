@@ -1,11 +1,31 @@
 "use client";
 import Link from "next/link";
 import MobilityShell from "./MobilityShell";
-import { Message, riderStyles as styles } from "./RiderShell";
-import { useBackend, useStoredQuery } from "@/lib/hooks/use-backend";
-import { date, money, record, text, unwrap } from "@/lib/backend-data";
+import { useStoredQuery } from "@/lib/hooks/use-backend";
+import { useCustomerDelivery } from "@/lib/hooks/use-customer-deliveries";
+import { date, money, record, text } from "@/lib/backend-data";
+import { formatDeliveryStatusLabel, getDeliveryStatusTone } from "@/lib/delivery-status";
+
 export default function CustomerDelivery({ calling = false }: { calling?: boolean }) {
-  const id = useStoredQuery("id", "alpharider_active_delivery_id");
-  const resource = useBackend(id ? `/rider-app/deliveries/${encodeURIComponent(id)}` : null, 15000), root = unwrap(resource.data), data = record(root.delivery ?? root), rider = record(data.rider ?? data.driver), phone = text(rider.phone ?? data.rider_phone ?? data.driver_phone);
-  return <MobilityShell><div className={styles.main}><h1>{calling ? "Contact your rider" : "Delivery details"}</h1>{!id ? <p>Select a delivery from your history.</p> : resource.loading ? <p>Loading delivery…</p> : resource.error ? <Message error={resource.error} /> : <section className={styles.card}><p>{text(data.reference ?? data.id, id)} · {text(data.status, "Status unavailable")}</p><p>{text(data.pickup_address)} → {text(data.dropoff_address)}</p><p>{date(data.created_at)}</p><p>Delivery fee: {money(data.delivery_fee ?? data.fee ?? data.amount)}</p><h2>Assigned rider</h2><p>{text(rider.name ?? data.rider_name ?? data.driver_name, "No rider details returned yet.")}</p>{/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className={styles.link} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call rider</a> : <p>A contact number is not available yet.</p>}<div className={styles.actions}><Link className={styles.link} href={`/user/in-app-chat?id=${encodeURIComponent(id)}`}>Message rider</Link><button onClick={resource.refresh}>Refresh delivery</button></div></section>}<Link href="/user/delivery">Delivery history</Link></div></MobilityShell>;
+  // Customer routes use an explicit reference, never a rider account's active-job key.
+  const id = useStoredQuery("id");
+  const resource = useCustomerDelivery(id), delivery = resource.data;
+  const phone = delivery?.riderPhone || "";
+  const assigned = Boolean(delivery?.riderId || delivery?.riderName || phone);
+  return <MobilityShell><Link className="mobility-back" href="/user/delivery">← Your deliveries</Link>
+    <p className="mobility-eyebrow">ALPHA SEND</p><div className="mobility-title-row"><h1>{calling ? "Contact your rider" : "Track your delivery"}</h1>{id ? <button className="mobility-button secondary" onClick={resource.refresh}>Refresh delivery</button> : null}</div>
+    {!id ? <section className="mobility-panel"><p>Select a delivery from Your deliveries.</p></section> : resource.loading ? <p role="status">Loading delivery…</p> : resource.error ? <section className="mobility-error" role="alert"><p>We couldn’t open this delivery. Refresh or return to Your deliveries.</p><details><summary>Error details</summary><p>Delivery ID: {id}</p>{resource.status ? <p>HTTP status: {resource.status}</p> : null}<p>{resource.error}</p></details></section> : delivery ? <div className="mobility-two-col">
+      <section className="mobility-panel"><span className={`status-pill ${getDeliveryStatusTone(delivery.status)}`}>{formatDeliveryStatusLabel(delivery.status)}</span><h2 className="mobility-delivery-reference">{delivery.reference}</h2>
+        <div className="mobility-route"><div><small>Pickup</small><p>{delivery.pickup}</p></div><div><small>Destination</small><p>{delivery.destination}</p></div></div>
+        <dl className="mobility-facts"><div><dt>Delivery ID</dt><dd>{delivery.id}</dd></div><div><dt>Updated</dt><dd>{date(delivery.updated)}</dd></div><div><dt>Delivery fee</dt><dd>{money(delivery.fee)}</dd></div><div><dt>Payment status</dt><dd>{delivery.paymentStatus || "Not reported"}</dd></div></dl>
+        {Array.isArray(delivery.items) && delivery.items.length ? <><h3>Package details</h3><ul>{delivery.items.map((item, index) => { const row = record(item); return <li key={index}>{text(row.name, "Package")} · Quantity: {text(row.quantity, "Not reported")}</li>; })}</ul></> : null}
+        <p className="mobility-muted">Last checked: {date(resource.checked)}. Status refreshes while this page is visible.</p>
+      </section>
+      <section className="mobility-panel"><h2>Your rider</h2><p>{delivery.riderName || (assigned ? "Rider assigned. Name not reported yet." : "Awaiting rider assignment.")}</p>
+        {/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className="mobility-button" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call rider</a> : <p className="mobility-muted">Rider contact details have not been reported yet.</p>}
+        {assigned ? <p><Link className="mobility-button secondary" href={`/user/in-app-chat?id=${encodeURIComponent(id)}`}>Message rider</Link></p> : <p className="mobility-muted">Delivery chat becomes available once a rider is assigned.</p>}
+        <hr /><h3>Need help?</h3><Link className="mobility-text-button" href="/user/in-app-chat">Messages & support →</Link>
+      </section>
+    </div> : null}
+  </MobilityShell>;
 }

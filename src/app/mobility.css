@@ -4,6 +4,10 @@
 .mobility-app :focus-visible { outline: 3px solid #334dba; outline-offset: 4px; }
 .mobility-header { max-width: 1100px; margin: auto; padding: 22px 32px; display: flex; align-items: center; justify-content: space-between; }
 .mobility-account { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+.mobility-header-links { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.mobility-delivery-reference, .mobility-ride-card h3 { overflow-wrap: anywhere; }
+.mobility-delivery-reference { margin-top: 18px !important; }
+.mobility-app .auth-form { max-width: 100%; }
 .mobility-main { max-width: 1040px; margin: auto; padding: 28px 32px; }
 .mobility-main h1 { font-size: clamp(30px, 4vw, 46px); letter-spacing: -1.5px; line-height: 1.15; margin: 8px 0 14px; }
 .mobility-main h2 { font-size: 22px; letter-spacing: -.5px; margin: 0 0 16px; }
@@ -81,6 +85,8 @@
 .mobility-account-links { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .mobility-account-links .mobility-link-panel { justify-content: space-between; }
 @media (max-width: 680px) {
+  .mobility-header-links { gap: 12px; font-size: 11px; }
+  .mobility-title-row { flex-wrap: wrap; }
   .mobility-header { padding: 18px 22px; }
   .mobility-main { padding: 16px 22px; }
   .mobility-account span { display: none; }

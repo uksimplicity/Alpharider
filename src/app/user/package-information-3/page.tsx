@@ -1,9 +1,12 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDelivery, extractDeliveryId, getUserProfile } from "@/lib/services";
 import { emptyRideDraft, normalizeRide, validateRideDraft } from "@/lib/booking-api";
+import MobilityShell from "@/app/components/MobilityShell";
+import Link from "next/link";
+import { checkSession } from "@/lib/account-client";
 
 export default function PackageInformationPage() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function PackageInformationPage() {
   const [coordinates, setCoordinates] = useState({ pickupLat: "", pickupLng: "", dropoffLat: "", dropoffLng: "" });
   const [packageName, setPackageName] = useState("Package");
   const [quantity, setQuantity] = useState(1);
+  const submissionLock = useRef(false);
 
   const canSubmit =
     pickupAddress.trim() &&
@@ -25,7 +29,8 @@ export default function PackageInformationPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit || isLoading) return;
+    if (submissionLock.current) return;
+    if (!canSubmit) { setErrorMessage("Enter your pickup and destination addresses."); return; }
 
     const token = localStorage.getItem("alpharider_token");
     if (!token) {
@@ -45,10 +50,12 @@ export default function PackageInformationPage() {
     if (locationError) { setErrorMessage(locationError); return; }
 
     setIsLoading(true);
+    submissionLock.current = true;
     setErrorMessage("");
 
     try {
       const profile = await getUserProfile(token);
+      checkSession(token);
       const customerId = profile.id ?? profile._id ?? profile.user_id ?? profile.customer_id;
       if (!customerId) throw new Error("Your profile is missing a customer identifier.");
       const response = await createDelivery(token, {
@@ -68,48 +75,25 @@ export default function PackageInformationPage() {
       });
 
       const createdId = extractDeliveryId(normalizeRide(response));
+      checkSession(token);
       if (!createdId) throw new Error("The server did not return a delivery reference. Check delivery history before trying again.");
 
-      if (createdId) {
-        localStorage.setItem("alpharider_active_delivery_id", createdId);
-      }
-
-      router.push(createdId ? `/user/waiting?id=${createdId}` : "/user/waiting");
+      router.push(`/user/delivery-details?id=${encodeURIComponent(createdId)}`);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to create delivery order."
       );
-    } finally {
+      submissionLock.current = false;
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="auth-page user-delivery-page">
-      <div className="auth-card user-page-card user-form-card">
-        <header className="user-page-header">
-          <button
-            className="user-header-button"
-            type="button"
-            aria-label="Go back"
-            onClick={() => router.back()}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M15 6l-6 6 6 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <img className="user-header-logo" src="/logo.png" alt="AlphaRide" />
-          <span className="user-header-spacer" />
-        </header>
+    <MobilityShell>
+      <div className="mobility-panel">
+        <Link className="mobility-back" href="/user/delivery">Back to Alpha Send</Link>
 
-        <h1 className="user-page-title">Package Information</h1>
+        <h1>Send a package</h1>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group"><h2>Package</h2>
@@ -193,9 +177,9 @@ export default function PackageInformationPage() {
           </div>
 
           <button
-            className={`user-primary-button form-cta ${canSubmit && !isLoading ? "active" : ""}`}
+            className={`user-primary-button form-cta ${!isLoading ? "active" : ""}`}
             type="submit"
-            disabled={!canSubmit || isLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Creating..." : "Create Order"}
           </button>
@@ -206,7 +190,6 @@ export default function PackageInformationPage() {
           ) : null}
         </form>
       </div>
-    </div>
+    </MobilityShell>
   );
 }
-
