@@ -28,7 +28,7 @@ async function main() {
   };
   const navigate = async path => { await send('Page.navigate', { url: preview + path }); await wait(`document.querySelector('nav[aria-label="Main navigation"]')`); };
   const click = label => evaluate(`(() => { const el = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === ${JSON.stringify(label)}); if (!el) throw new Error('Button missing'); el.click(); })()`);
-  const input = (label, value) => evaluate(`(() => { const el = [...document.querySelectorAll('label')].find(el => el.textContent.trim().startsWith(${JSON.stringify(label)}))?.querySelector('input'); if (!el) throw new Error('Input missing'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  const addressField = (section, label, value) => evaluate(`(() => { const group = [...document.querySelectorAll('fieldset.package-location-field')].find(el => el.querySelector('legend').textContent === ${JSON.stringify(section)}); const el = [...group.querySelectorAll('label')].find(el => el.querySelector('span')?.textContent === ${JSON.stringify(label)})?.querySelector('input,select'); if (!el) throw new Error('Address field missing'); const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); })()`);
   try {
     await send('Page.enable'); await send('Runtime.enable');
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 740, deviceScaleFactor: 1, mobile: true });
@@ -43,7 +43,7 @@ async function main() {
         Marker: class { constructor() {} setPosition() {} setVisible() {} setMap() {} addListener() { return {remove(){}}; } },
         Geocoder: class { geocode(request, callback) {
           const result = (latitude,longitude) => callback([{types:['street_address'],geometry:{location_type:'ROOFTOP',location:{lat:()=>latitude,lng:()=>longitude}}}], 'OK');
-          if (request.address === 'Old pickup') { __heldGeocode = () => result(1,2); return; }
+          if (request.address.startsWith('12 Old pickup,')) { __heldGeocode = () => result(1,2); return; }
           request.address.includes('destination') ? result(6.60,3.35) : result(6.58,3.32);
         }}
       }};
@@ -87,10 +87,20 @@ async function main() {
     assert.equal(await evaluate(`document.body.innerText.includes('Delivery conversation')`), false);
     console.log('PASS customer notifications/support retain customer navigation and do not load rider availability/location');
     await navigate('/user/package-information-3');
-    await wait(`document.querySelector('input[placeholder="Enter Pick up location"]') && [...document.querySelectorAll('input')].some(el => Object.keys(el).some(key => key.startsWith('__reactProps')))`);
+    await wait(`document.querySelector('input[placeholder="e.g. 12B"]') && [...document.querySelectorAll('input')].some(el => Object.keys(el).some(key => key.startsWith('__reactProps')))`);
     assert.equal(await evaluate(`document.body.innerText.toLowerCase().includes('latitude') || document.body.innerText.toLowerCase().includes('longitude')`), false);
-    await input('Pickup address', 'Old pickup'); await wait(`typeof __heldGeocode === 'function'`);
-    await input('Pickup address', 'Test pickup'); await input('Destination address', 'Test destination');
+    assert.equal(await evaluate(`document.querySelector('fieldset.package-location-field select[autocomplete="address-level2"]').disabled`), true);
+    await addressField('Pickup', 'House number', '12'); await addressField('Pickup', 'Street name', 'Old pickup');
+    await addressField('Pickup', 'State', 'Lagos'); await addressField('Pickup', 'Local government', 'Ikeja');
+    await wait(`typeof __heldGeocode === 'function'`);
+    await addressField('Pickup', 'State', 'Ogun');
+    assert.equal(await evaluate(`document.querySelector('fieldset.package-location-field select[autocomplete="address-level2"]').value`), '');
+    assert.equal(await evaluate(`[...document.querySelector('fieldset.package-location-field select[autocomplete="address-level2"]').options].some(el=>el.value==='Ikeja')`), false);
+    await addressField('Pickup', 'State', 'Lagos'); await addressField('Pickup', 'Local government', 'Ikeja');
+    await addressField('Pickup', 'Street name', 'Test pickup');
+    await addressField('Destination', 'House number', '24'); await addressField('Destination', 'Street name', 'Test destination');
+    await addressField('Destination', 'State', 'Lagos'); await addressField('Destination', 'Local government', 'Ibeju-Lekki');
+    assert.equal(await evaluate(`document.querySelector('fieldset.package-location-field textarea').readOnly`), true);
     await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm pickup location')`);
     await click('Confirm pickup location');
     await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm destination location')`);
@@ -106,7 +116,7 @@ async function main() {
     await wait(`[...document.querySelectorAll('button')].some(el=>el.textContent==='Confirm destination location')`);
     await click('Confirm destination location');
     await evaluate(`__heldGeocode()`);
-    await input('Pickup address', 'Edited pickup');
+    await addressField('Pickup', 'Street name', 'Edited pickup');
     await evaluate(`document.querySelector('form').requestSubmit()`);
     await wait(`document.querySelector('[role="alert"]')?.textContent.includes('Confirm the pickup location')`);
     assert.equal(await evaluate(`__writes.length`), 0);
@@ -120,7 +130,8 @@ async function main() {
     assert.equal(await evaluate(`__writes[0].pickup_lng`), 3.32);
     assert.equal(await evaluate(`__writes[0].dropoff_lat`), 6.60);
     assert.equal(await evaluate(`__writes[0].dropoff_lng`), 3.35);
-    assert.equal(await evaluate(`__writes[0].pickup_address`), 'Edited pickup');
+    assert.equal(await evaluate(`__writes[0].pickup_address`), '12 Edited pickup, Ikeja, Lagos, Nigeria');
+    assert.equal(await evaluate(`__writes[0].dropoff_address`), '24 Test destination, Ibeju-Lekki, Lagos, Nigeria');
     assert.equal(await evaluate(`document.querySelector('button[type="submit"]').disabled`), true);
     await evaluate(`__finishCreate()`); await wait(`location.pathname === '/user/delivery-details' && location.search === '?id=d2'`);
     await wait(`document.body.innerText.includes('Test destination')`);

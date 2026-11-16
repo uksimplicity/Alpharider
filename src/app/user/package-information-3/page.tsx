@@ -101,8 +101,8 @@ export default function PackageInformationPage() {
           </div>
           <div className="form-group">
             <h2>Pickup and destination</h2>
-            <PackageLocationField label="Pickup" placeholder="Enter Pick up location" address={pickupAddress} point={pickupPoint} disabled={isLoading} onAddressChange={value => { setPickupAddress(value); setPickupPoint(null); setErrorMessage(""); }} onConfirm={point => { setPickupPoint(point); setErrorMessage(""); }} />
-            <PackageLocationField label="Destination" placeholder="Enter Destination" address={dropoffAddress} point={destinationPoint} disabled={isLoading} onAddressChange={value => { setDropoffAddress(value); setDestinationPoint(null); setErrorMessage(""); }} onConfirm={point => { setDestinationPoint(point); setErrorMessage(""); }} />
+            <PackageLocationField label="Pickup" address={pickupAddress} point={pickupPoint} disabled={isLoading} onAddressChange={value => { setPickupAddress(value); setPickupPoint(null); setErrorMessage(""); }} onConfirm={point => { setPickupPoint(point); setErrorMessage(""); }} />
+            <PackageLocationField label="Destination" address={dropoffAddress} point={destinationPoint} disabled={isLoading} onAddressChange={value => { setDropoffAddress(value); setDestinationPoint(null); setErrorMessage(""); }} onConfirm={point => { setDestinationPoint(point); setErrorMessage(""); }} />
           </div>
           <div className="form-group">
             <h2>Receiver</h2>

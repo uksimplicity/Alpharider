@@ -25,7 +25,7 @@ export async function locatePackageAddress(address: string): Promise<DeliveryPoi
         clearTimeout(timer);
         const result = status === "OK" && results?.length === 1 ? results[0] : null;
         if (!result || result.partial_match || !result.types.some(type => ["street_address", "premise", "subpremise"].includes(type)) || !["ROOFTOP", "RANGE_INTERPOLATED"].includes(result.geometry.location_type)) {
-          reject(new Error("We couldn’t locate the exact address. Include the street, city and state, or choose the location on the map.")); return;
+          reject(new Error("We couldn’t locate the exact address. Check the house number, street, state and local government, or choose the location on the map.")); return;
         }
         const point = { latitude: result.geometry.location.lat(), longitude: result.geometry.location.lng() };
         if (!validPackagePoint(point)) { reject(new Error("Choose a valid location on the map.")); return; }

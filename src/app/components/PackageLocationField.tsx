@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { checkSession, currentToken } from "@/lib/account-client";
 import { loadGoogleMaps, mapPoint, mapsAuthFailureEvent, type DeliveryPoint, type GoogleMapApi } from "@/lib/google-maps";
 import { locatePackageAddress, validPackagePoint, type PackageLocation } from "@/lib/package-location";
+import { nigeriaLGAs, nigeriaStates } from "@/data/nigeriaLocations";
+import { completeAddressDetails, fullAddress, readAddressDetails, type AddressDetails } from "@/lib/structured-address";
 
 function LocationMap({ point, onSelect }: { point: DeliveryPoint | null; onSelect: (point: DeliveryPoint) => void }) {
   const element = useRef<HTMLDivElement>(null), select = useRef(onSelect);
@@ -36,11 +38,13 @@ function LocationMap({ point, onSelect }: { point: DeliveryPoint | null; onSelec
   return <div>{error ? <p role="status">{error}</p> : <><div className="package-location-map" ref={element} aria-label="Address location map" />{!ready ? <p role="status">Loading map…</p> : <p className="mobility-muted">Click the map or drag the pin, then confirm the location.</p>}</>}</div>;
 }
 
-export default function PackageLocationField({ label, placeholder, address, point, onAddressChange, onConfirm, disabled }: {
-  label: string; placeholder: string; address: string; point: PackageLocation | null;
+export default function PackageLocationField({ label, address, point, onAddressChange, onConfirm, disabled }: {
+  label: string; address: string; point: PackageLocation | null;
   onAddressChange: (address: string) => void; onConfirm: (point: PackageLocation) => void; disabled: boolean;
 }) {
   const [candidate, setCandidate] = useState<{ point: DeliveryPoint; address: string; token: string } | null>(null);
+  const [details, setDetails] = useState(() => readAddressDetails(address));
+  const complete = completeAddressDetails(details);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [mapOpen, setMapOpen] = useState(false), [attempt, setAttempt] = useState(0);
   const version = useRef(0);
@@ -49,7 +53,7 @@ export default function PackageLocationField({ label, placeholder, address, poin
   const confirmed = point?.address === address.trim() && validPackagePoint(point);
   const selected = candidate?.address === address.trim() ? candidate : null;
   useEffect(() => {
-    if (!address.trim() || disabled || confirmed || selected || manualRequest.current) return;
+    if (!complete || !address.trim() || disabled || confirmed || selected || manualRequest.current) return;
     let active = true;
     const generation = ++version.current;
     const timer = setTimeout(() => {
@@ -65,10 +69,10 @@ export default function PackageLocationField({ label, placeholder, address, poin
       })();
     }, 900);
     return () => { active = false; clearTimeout(timer); };
-  }, [address, disabled, confirmed, selected, attempt]);
+  }, [address, complete, disabled, confirmed, selected, attempt]);
   useEffect(() => { const current = lifetime.current; current.active = true; return () => { current.active = false; }; }, []);
   const choose = (next: DeliveryPoint) => {
-    if (disabled || !lifetime.current.active) return;
+    if (disabled || !complete || !lifetime.current.active) return;
     manualRequest.current = false;
     version.current++;
     setBusy(false);
@@ -76,6 +80,7 @@ export default function PackageLocationField({ label, placeholder, address, poin
     catch (cause) { setError(cause instanceof Error ? cause.message : "Please sign in again."); }
   };
   const locate = () => {
+    if (!complete) return;
     if (!navigator.geolocation) { setError("Location access is unavailable. Choose the address on the map."); return; }
     let token: string;
     try { token = currentToken(); } catch { setError("Please sign in again before choosing a location."); return; }
@@ -89,13 +94,25 @@ export default function PackageLocationField({ label, placeholder, address, poin
       catch (cause) { setBusy(false); setError(cause instanceof Error ? cause.message : "Your location could not be confirmed."); }
     }, failure => { if (!lifetime.current.active || generation !== version.current) return; manualRequest.current = false; setBusy(false); setError(failure.code === 1 ? "Allow location access, or choose this address on the map." : "Your location could not be found. Try again or choose the address on the map."); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
   };
+  const changeDetail = (field: keyof AddressDetails, value: string) => {
+    const next = { ...details, [field]: value, ...(field === "state" ? { lga: "" } : {}) };
+    version.current++; manualRequest.current = false;
+    setDetails(next); setCandidate(null); setBusy(false); setError("");
+    onAddressChange(fullAddress(next));
+  };
   return <fieldset className="package-location-field" disabled={disabled}><legend>{label}</legend>
-    <label><span>{label} address</span><input required type="text" maxLength={500} autoComplete="street-address" placeholder={placeholder} value={address} onChange={event => { version.current++; manualRequest.current = false; setCandidate(null); setBusy(false); setError(""); onAddressChange(event.target.value); }} /></label>
-    <p className="mobility-muted">Include the street, city and state. We’ll locate the address for you.</p>
+    <div className="package-address-fields">
+      <label><span>House number</span><input required type="text" maxLength={30} autoComplete="off" placeholder="e.g. 12B" value={details.houseNumber} onChange={event => changeDetail("houseNumber", event.target.value)} /></label>
+      <label><span>Street name</span><input required type="text" maxLength={200} autoComplete="address-line1" placeholder="e.g. Admiralty Way" value={details.street} onChange={event => changeDetail("street", event.target.value)} /></label>
+      <label><span>State</span><select required autoComplete="address-level1" value={details.state} onChange={event => changeDetail("state", event.target.value)}><option value="">Select state</option>{nigeriaStates.map(state => <option key={state} value={state}>{state}</option>)}</select></label>
+      <label><span>Local government</span><select required autoComplete="address-level2" disabled={!details.state} value={details.lga} onChange={event => changeDetail("lga", event.target.value)}><option value="">{details.state ? "Select local government" : "Select state first"}</option>{(nigeriaLGAs[details.state] || []).map(lga => <option key={lga} value={lga}>{lga}</option>)}</select></label>
+    </div>
+    <label><span>{label} address</span><textarea rows={2} readOnly value={address} placeholder="Your full address appears here" /></label>
+    <p className="mobility-muted">{complete ? "We’ll locate this address for you." : "Complete the house number, street name, state and local government."}</p>
     {busy ? <p role="status">Finding {label.toLowerCase()} location…</p> : null}
     {error ? <><p className="mobility-error" role="status">{error}</p><button className="mobility-text-button" type="button" onClick={() => { setCandidate(null); setAttempt(value => value + 1); }}>Retry address lookup</button></> : null}
     {confirmed ? <p role="status">{label} location confirmed.</p> : selected ? <><p>Location selected. Check that it matches the address.</p><button className="mobility-button secondary" type="button" onClick={() => { try { checkSession(selected.token); onConfirm({ ...selected.point, address: address.trim() }); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "Please sign in again."); } }}>Confirm {label.toLowerCase()} location</button></> : null}
-    <div className="package-location-actions"><button type="button" className="mobility-text-button" disabled={!address.trim() || busy} onClick={() => setMapOpen(value => !value)}>{mapOpen ? "Hide map" : `Choose ${label.toLowerCase()} on map`}</button><button type="button" className="mobility-text-button" disabled={!address.trim() || busy} onClick={locate}>Use my location for {label.toLowerCase()}</button></div>
+    <div className="package-location-actions"><button type="button" className="mobility-text-button" disabled={!complete || busy} onClick={() => setMapOpen(value => !value)}>{mapOpen ? "Hide map" : `Choose ${label.toLowerCase()} on map`}</button><button type="button" className="mobility-text-button" disabled={!complete || busy} onClick={locate}>Use my location for {label.toLowerCase()}</button></div>
     <p className="mobility-muted">Use your current location only if you are at this address.</p>
     {mapOpen ? <LocationMap point={selected?.point || point} onSelect={choose} /> : null}
   </fieldset>;

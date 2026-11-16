@@ -9,6 +9,18 @@ const originalLoader = maps.loadGoogleMaps;
 afterEach(() => { maps.loadGoogleMaps = originalLoader; });
 const pickup = { address:'12 Test Street, Lagos', latitude:6.58, longitude:3.32 };
 const destination = { address:'24 Other Street, Lagos', latitude:6.60, longitude:3.35 };
+const { completeAddressDetails, fullAddress, readAddressDetails } = require('../src/lib/structured-address.ts');
+const { nigeriaStates } = require('../src/data/nigeriaLocations.ts');
+
+test('structured package address requires all four fields and a local government belonging to its state', () => {
+  const details = { houseNumber:' 12B ', street:' Test Street ', state:'Lagos', lga:'Ikeja' };
+  assert.equal(completeAddressDetails(details),true);
+  assert.equal(fullAddress(details),'12B Test Street, Ikeja, Lagos, Nigeria');
+  for (const change of [{houseNumber:''},{street:''},{state:''},{lga:''},{state:'Ogun',lga:'Ikeja'}]) assert.equal(completeAddressDetails({...details,...change}),false);
+  assert.equal(nigeriaStates.length,37);
+  assert.ok(nigeriaStates.includes('Federal Capital Territory'));
+  assert.deepEqual(readAddressDetails(fullAddress(details)),{...details,houseNumber:'12B',street:'Test Street'});
+});
 
 test('confirmed address points become backend route fields without changing real coordinates', () => {
   assert.deepEqual(packageRoute(pickup.address, destination.address, pickup, destination), {
