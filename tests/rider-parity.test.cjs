@@ -22,6 +22,8 @@ beforeEach(() => {
     const path = new URL(url).pathname;
     if (path.endsWith('/user/profile')) return json({ user: { id: account, email: account + '@example.test' } });
     if (path.endsWith('/rider/profile')) return json({ rider: riderProfile });
+    if (path.endsWith('/rider/deliveries/requested')) return json(job.status === 'requested' ? [job] : []);
+    if (path.endsWith('/rider/deliveries')) return json(job.status === 'assigned' ? [job] : []);
     if (path.endsWith('/rider/deliveries/job1')) return json({ delivery: job });
     writes.push({ path, body: init.body ? JSON.parse(init.body) : null });
     if (fail) return new Response(JSON.stringify({ error: 'Write failed' }), { status: fail });
@@ -62,30 +64,56 @@ test('request source labels preserve blank/unknown sources and recognize reporte
   assert.equal(riderJob({ source: 'rider_app' }).sourceLabel, 'AlphaRide');
 });
 
-test('unassigned request detail uses rider authorization and backend denial prevents acceptance writes', async () => {
+test('request review and acceptance use listed data before the owned-only detail endpoint', async () => {
   const detailPath = '/api/v1/rider/deliveries/job1';
   const original = global.fetch;
-  let denied = true;
+  let detailReads = 0;
   global.fetch = async (url, init = {}) => {
     if (new URL(url).pathname === detailPath && !init.method) {
+      detailReads++;
       assert.equal(init.headers.Authorization, `Bearer ${token}`);
-      return denied
+      return job.status === 'requested'
         ? new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 404 })
         : json({ delivery: { ...job, rider_id: null, source: '' } });
     }
     return original(url, init);
   };
-  const { accountRequest } = require('../src/lib/account-client.ts');
-  await assert.rejects(accountRequest('/rider/deliveries/job1'), error => error.status === 404 && error.message === 'Unauthorized');
-  await assert.rejects(actions.performJobAction('job1', 'accept'), /Unauthorized/);
+  const review = await actions.loadRiderDelivery('job1');
+  assert.equal(review.id, 'job1');
+  assert.equal(review.status, 'requested');
+  assert.equal(detailReads, 0);
   assert.equal(writes.length, 0);
-  denied = false;
-  const detail = await accountRequest('/rider/deliveries/job1');
-  assert.equal(detail.data.delivery.rider_id, null);
-  assert.equal(riderJob(detail.data.delivery).sourceLabel, 'Source not reported');
   await actions.performJobAction('job1', 'accept');
+  assert.equal(detailReads, 0);
   assert.equal(writes.length, 1);
   assert.equal(writes[0].path, '/api/v1/rider/deliveries/job1/accept');
+  assert.equal((await actions.loadRiderDelivery('job1')).status, 'assigned');
+  assert.equal(detailReads, 1);
+  await actions.performJobAction('job1', 'accept');
+  assert.equal(writes.length, 1);
+});
+
+test('acceptance refreshes eligibility and never posts for a request missing from the lists', async () => {
+  const native = global.fetch;
+  global.fetch = async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith('/requested') || path.endsWith('/rider/deliveries')) return json([]);
+    return native(url, init);
+  };
+  await assert.rejects(actions.performJobAction('job1', 'accept'), /no longer available/);
+  assert.equal(writes.length, 0);
+});
+
+test('owned delivery failures remain visible and cannot trigger acceptance', async () => {
+  const native = global.fetch;
+  global.fetch = async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith('/requested') || path.endsWith('/rider/deliveries')) return json([]);
+    if (path.endsWith('/job1')) return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 404 });
+    return native(url, init);
+  };
+  await assert.rejects(actions.loadRiderDelivery('job1'), error => error.status === 404 && error.message === 'Unauthorized');
+  assert.equal(writes.length, 0);
 });
 test('assigned invitations require acceptance and package progress cannot skip pickup or delivery stages', () => {
   const invitation = riderJob({ status: 'assigned', source: 'marketplace' });

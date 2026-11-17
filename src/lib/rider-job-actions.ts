@@ -3,6 +3,7 @@ import { ApiError, requestJson } from "./api";
 import { normalizeProfile, record, text, unwrap, type Row } from "./backend-data";
 import { riderJob } from "./rider-job";
 import { requireApprovedRider } from "./rider-access";
+import { listRiderDeliveries } from "./rider-delivery-list";
 
 export type JobReceipt = { accepted?: boolean; pending?: { action: string; from: string } };
 const accounts = new Map<string, Promise<string>>(), inFlight = new Set<string>();
@@ -34,6 +35,25 @@ function read(key: string): JobReceipt {
   catch { throw new Error("The previous action could not be read. Contact support before submitting again."); }
 }
 function save(key: string, value: JobReceipt) { localStorage.setItem(key, JSON.stringify(value)); }
+async function deliveryDetail(id: string) {
+  const payload = unwrap(await accountRequest(`/rider/deliveries/${encodeURIComponent(id)}`));
+  const raw = record(payload.delivery ?? payload);
+  if (text(raw.id ?? raw.delivery_id) !== id) throw new Error("The server returned a different delivery. Refresh before continuing.");
+  return raw;
+}
+export async function loadRiderDelivery(id: string): Promise<Row> {
+  const token = currentToken();
+  await requireApprovedRider(); checkSession(token);
+  const receipt = read(await riderActionKey(`job:${id}`, token));
+  if (!receipt.accepted) {
+    const listed = (await listRiderDeliveries()).find(row => text(row.id) === id);
+    if (listed) {
+      const reconciled = await reconcileJob(id, listed);
+      if (riderJob(listed).needsAcceptance && !reconciled.accepted) return listed;
+    }
+  }
+  return deliveryDetail(id);
+}
 export async function reconcileJob(id: string, raw: Row): Promise<JobReceipt> {
   const key = await riderActionKey(`job:${id}`), receipt = read(key), job = riderJob(raw);
   const progressed = ["picking_up", "on_the_way", "delivered", "completed"].includes(job.status);
@@ -52,8 +72,12 @@ export async function performJobAction(id: string, action: string, code = "") {
     inFlight.add(key);
     try {
       await requireApprovedRider(); checkSession(token);
-      const payload = unwrap(await accountRequest(`/rider/deliveries/${encodeURIComponent(id)}`));
-      const raw = record(payload.delivery ?? payload);
+      const saved = read(key);
+      if (action === "accept" && saved.accepted) return;
+      const raw = action === "accept"
+        ? (await listRiderDeliveries()).find(row => text(row.id) === id)
+        : await deliveryDetail(id);
+      if (!raw) throw new ApiError("This request is no longer available. Refresh requests before continuing.", 409, null);
       const receipt = await reconcileJob(id, raw), job = riderJob(raw);
       if (receipt.pending) throw new Error("The previous action is still unconfirmed. Refresh the job or contact support before trying again.");
       if (action === "accept" && receipt.accepted) return;

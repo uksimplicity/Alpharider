@@ -8,7 +8,7 @@ export function useStoredQuery(name: string, fallbackKey?: string) {
   return useSyncExternalStore(subscribeLocation, () => new URLSearchParams(window.location.search).get(name) ?? (fallbackKey ? localStorage.getItem(fallbackKey) ?? "" : ""), () => "");
 }
 
-export function useBackend(path: string | null, poll = 0) {
+export function useBackend(path: string | null, poll = 0, loadResource: (path: string) => Promise<unknown> = accountRequest) {
   const token = useSyncExternalStore(subscribeLocation, () => localStorage.getItem("alpharider_token") ?? "", () => "");
   const key = `${token}:${path}`;
   const [attempt, setAttempt] = useState(0);
@@ -19,7 +19,7 @@ export function useBackend(path: string | null, poll = 0) {
     let active = true, pending = false;
     const load = async () => {
       if (pending) return; pending = true;
-      try { const data = await accountRequest(path); if (active) setResult({ key, data, error: "", loading: false }); }
+      try { const data = await loadResource(path); if (active) setResult({ key, data, error: "", loading: false }); }
       catch (error) { if (active) setResult({ key, data: null, error: error instanceof Error ? error.message : "Could not load data.", errorStatus: error instanceof ApiError ? error.status : undefined, loading: false }); }
       finally { pending = false; }
     };
@@ -28,7 +28,7 @@ export function useBackend(path: string | null, poll = 0) {
     const timer = poll ? window.setInterval(visibleLoad, poll) : null;
     window.addEventListener("focus", visibleLoad);
     return () => { active = false; if (timer) clearInterval(timer); window.removeEventListener("focus", visibleLoad); };
-  }, [path, key, attempt, poll]);
+  }, [path, key, attempt, poll, loadResource]);
   return { data: result.key === key ? result.data : null, error: result.key === key ? result.error : "", errorStatus: result.key === key ? result.errorStatus : undefined, loading: Boolean(path) && result.key !== key ? true : result.loading, refresh };
 }
 export function useWrite() {
