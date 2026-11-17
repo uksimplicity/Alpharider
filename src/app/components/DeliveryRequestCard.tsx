@@ -8,7 +8,6 @@ import { riderJob } from "@/lib/rider-job";
 import styles from "./delivery-request.module.css";
 import { performJobAction } from "@/lib/rider-job-actions";
 import RequestDecisionButtons from "./RequestDecisionButtons";
-import DeliveryContacts from "./DeliveryContacts";
 
 export default function DeliveryRequestCard({ item }: { item: Row }) {
   const job = riderJob(item), id = text(item.id);
@@ -41,7 +40,6 @@ export default function DeliveryRequestCard({ item }: { item: Row }) {
       <div className={styles.stop}><span className={styles.pickupDot} aria-hidden="true" /><div><span className={styles.label}>Pickup</span><p>{text(item.pickup_address, "Address unavailable")}</p></div></div>
       <div className={styles.stop}><span className={styles.destinationDot} aria-hidden="true" /><div><span className={styles.label}>Destination</span><p>{text(item.dropoff_address, "Address unavailable")}</p></div></div>
     </div>
-    <DeliveryContacts delivery={item} />
     <div className={styles.footer}>
       <div className={styles.details}>
         {payment ? <span>Payment: <strong>{payment}</strong></span> : null}

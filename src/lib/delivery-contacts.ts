@@ -2,6 +2,12 @@ import { record, text, type Row } from "./backend-data";
 import { riderJob } from "./rider-job";
 
 const first = (...values: unknown[]) => values.map(value => text(value)).find(Boolean) || "";
+
+export function deliveryContactsVisible(raw: Row, accepted = false) {
+  const job = riderJob(raw);
+  if (!["assigned", "picking_up", "on_the_way", "delivered", "completed"].includes(job.status)) return false;
+  return accepted || job.acceptanceReported || !job.needsAcceptance;
+}
 // Only follow profile wrappers within a known party, so a missing contact name
 // cannot accidentally become the rider's name or the other party's name.
 function profiles(value: unknown): Row[] {

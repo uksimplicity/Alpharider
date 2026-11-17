@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, filename);
-const { deliveryContacts } = require('../src/lib/delivery-contacts.ts');
+const { deliveryContacts, deliveryContactsVisible } = require('../src/lib/delivery-contacts.ts');
 const { openDeliveryConversation, sendConversationMessage, markConversationRead } = require('../src/lib/delivery-chat.ts');
 const originalFetch = global.fetch, originalStorage = global.localStorage;
 let requests;
@@ -16,6 +16,17 @@ beforeEach(() => {
   };
 });
 afterEach(() => { global.fetch = originalFetch; global.localStorage = originalStorage; });
+
+test('contacts stay hidden until acceptance is confirmed, including assigned invitations', () => {
+  assert.equal(deliveryContactsVisible({ status: 'requested', source: 'marketplace', seller_phone: '08000000001' }), false);
+  assert.equal(deliveryContactsVisible({ status: 'requested' }, true), false);
+  assert.equal(deliveryContactsVisible({ status: 'assigned', source: 'marketplace', requires_acceptance: true }), false);
+  assert.equal(deliveryContactsVisible({ status: 'assigned', source: 'marketplace' }, true), true);
+  assert.equal(deliveryContactsVisible({ status: 'assigned', source: 'marketplace', accepted_at: '2026-11-17T10:00:00Z' }), true);
+  assert.equal(deliveryContactsVisible({ status: 'on_the_way', source: 'marketplace' }), true);
+  assert.equal(deliveryContactsVisible({ status: 'cancelled' }), false);
+  assert.equal(deliveryContactsVisible({}), false);
+});
 
 test('marketplace contacts display separate buyer and seller fields and never use the buyer as pickup seller', () => {
   const contacts = deliveryContacts({ source: 'marketplace', seller_name: 'Seller Ada', seller_phone: '+2348000000001', buyer: { first_name: 'Buyer', last_name: 'Emeka', phone: '+2348000000002' } });
