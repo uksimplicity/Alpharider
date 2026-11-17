@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import SessionManager from "./components/SessionManager";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = localFont({
+  src: "./fonts/SpaceGrotesk-Variable.ttf",
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
+  display: "swap",
 });
 
-const manrope = Manrope({
+const manrope = localFont({
+  src: "./fonts/Manrope-Variable.ttf",
   variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
