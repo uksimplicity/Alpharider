@@ -30,7 +30,7 @@ export default function RiderDeliveriesPage() {
           <span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status}</span>
           <div className={deliveryStyles.amount}><span>Delivery amount</span><strong>{money(item.delivery_fee ?? item.fee ?? item.amount)}</strong></div>
         </div>
-        {job.scheduledFor ? <p>Scheduled pickup: {date(new Date(job.scheduledFor).toISOString())}</p> : null}<p>{text(item.pickup_address)} → {text(item.dropoff_address)}</p><p>{date(item.created_at)}</p><DeliveryContacts delivery={item} /><div className={styles.actions}><Link className={styles.link} href={`/delivery/request?id=${encodeURIComponent(id)}`}>View job</Link>{job.status !== "requested" ? <Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message buyer</Link> : null}</div>
+        {job.scheduledFor ? <p>Scheduled pickup: {date(new Date(job.scheduledFor).toISOString())}</p> : null}<p>{text(item.pickup_address)} → {text(item.dropoff_address)}</p><p>{date(item.created_at)}</p><DeliveryContacts delivery={item} /><div className={styles.actions}><Link className={styles.link} href={`/delivery/request?id=${encodeURIComponent(id)}`}>View job</Link></div>
       </article>;
     }) : !error ? <p>{list.length ? "No jobs on this page match your filters." : "No jobs found."}</p> : null}<Pager offset={offset} count={list.length} onPage={setOffset} /></section>
   </RiderShell>;

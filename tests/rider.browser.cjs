@@ -166,10 +166,12 @@ async function main() {
     console.log('PASS uncertain payouts remain blocked after reload until explicit account review');
     await navigate('/rider/earnings'); await wait(`document.body.innerText.includes('1,800')&&document.body.innerText.includes('rider_commission_rate')`);
     console.log('PASS backend earnings, commissions and platform settings');
-    await navigate('/delivery/chat?id=job1'); await wait(`document.body.innerText.includes('Open delivery chat')`); await click('Open delivery chat'); await wait(`document.body.innerText.includes('Actual customer message')`);
-    await input('Message','Real test reply'); await click('Send message'); await wait(`document.body.innerText.includes('Real test reply')`);
-    assert.deepEqual(await evaluate(`__writes.find(w=>w.path.endsWith('/messages')).body`),{body:'Real test reply'});
-    console.log('PASS delivery conversations and real message submission');
+    await navigate('/rider/messages'); await wait(`location.pathname==='/dashboard'&&document.body.innerText.includes('Job requests')`);
+    assert.equal(await evaluate(`Boolean(document.querySelector('a[href="/rider/messages"]'))`),false);
+    await navigate('/delivery/chat?id=job1'); await wait(`location.pathname==='/rider/deliveries'&&document.body.innerText.includes('My jobs')`);
+    assert.equal(await evaluate(`Boolean(document.querySelector('a[href^="/delivery/chat"]'))`),false);
+    assert.equal(await evaluate(`__writes.filter(w=>w.path.startsWith('/chat/')).length`),0);
+    console.log('PASS removed rider messaging routes redirect to dashboard/jobs without chat writes');
     await evaluate(`sessionStorage.setItem('parity-rider',JSON.stringify({verification_status:'pending',status:'available'}));sessionStorage.setItem('parity-job',JSON.stringify({id:'approval1',status:'requested'}));`);
     await navigate('/delivery/request?id=approval1'); await wait(`document.body.innerText.includes('awaiting admin approval')`);
     assert.equal(await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Accept delivery').disabled`),true);
