@@ -38,6 +38,29 @@ test('order contacts, nested user details and structured pickup contacts remain 
   assert.equal(deliveryContacts({ customer_id: '00000000-0000-0000-0000-000000000000' }).pickup.name, '');
 });
 
+test('names are resolved from nested buyer and seller profiles with Marketplace field casing', () => {
+  const contacts = deliveryContacts({
+    source: 'marketplace', pickup_contact: '+2348000000001', dropoff_contact: '08000000002',
+    Seller: { Name: '', User: { Profile: { firstName: 'Ada', lastName: 'Seller' } } },
+    Order: { Buyer: { name: '', profile: { user: { FirstName: 'Emeka', LastName: 'Buyer' } } } },
+  });
+  assert.equal(contacts.pickup.name, 'Ada Seller');
+  assert.equal(contacts.dropoff.name, 'Emeka Buyer');
+  assert.equal(contacts.pickup.phone, '+2348000000001');
+  assert.equal(contacts.dropoff.phone, '08000000002');
+  const aliases = deliveryContacts({ seller_name: '', sellerName: 'Actual seller', buyer: {}, buyer_profile: { data: { profile: { fullName: 'Actual buyer' } } } });
+  assert.equal(aliases.pickup.name, 'Actual seller');
+  assert.equal(aliases.dropoff.name, 'Actual buyer');
+});
+
+test('nested contact names never come from the rider or the opposite party', () => {
+  const contacts = deliveryContacts({ source: 'marketplace', rider: { profile: { name: 'Rider name' } }, buyer: { profile: { name: 'Buyer name' } }, seller: { products: [{ name: 'Product name' }] } });
+  assert.equal(contacts.pickup.name, '');
+  assert.equal(contacts.dropoff.name, 'Buyer name');
+  const cyclic = {}; cyclic.profile = cyclic;
+  assert.equal(deliveryContacts({ source: 'marketplace', seller: cyclic }).pickup.name, '');
+});
+
 test('rider delivery chat uses the documented context payload and authenticated message/read endpoints', async () => {
   const id = await openDeliveryConversation('delivery-1');
   await sendConversationMessage(id, '  Arriving at pickup  ');
