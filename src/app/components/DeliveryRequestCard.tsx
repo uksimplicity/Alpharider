@@ -3,35 +3,12 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { date, money, profileName, record, text, type Row } from "@/lib/backend-data";
+import { date, money, text, type Row } from "@/lib/backend-data";
 import { riderJob } from "@/lib/rider-job";
 import styles from "./delivery-request.module.css";
 import { performJobAction } from "@/lib/rider-job-actions";
 import RequestDecisionButtons from "./RequestDecisionButtons";
-
-function Contact({ label, name, phone }: { label: string; name: string; phone: string }) {
-  const [feedback, setFeedback] = useState("");
-  const callable = /^\+?[\d\s()-]{7,}$/.test(phone);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(phone);
-      setFeedback("Phone number copied");
-    } catch {
-      setFeedback("Could not copy. Select and copy the number manually.");
-    }
-  }
-  return <div className={styles.contact}>
-    <span className={styles.label}>{label}</span>
-    {name ? <span className={styles.contactName}>{name}</span> : null}
-    {phone ? <div className={styles.phoneRow}>
-      {callable ? <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a> : <span>{phone}</span>}
-      <button type="button" className={styles.copy} aria-label={`Copy ${label.toLowerCase()} phone number`} title="Copy phone number" onClick={() => void copy()}>
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3" /></svg>
-      </button>
-    </div> : <span className={styles.unavailable}>Phone not provided</span>}
-    <span className={styles.copyFeedback} role="status">{feedback}</span>
-  </div>;
-}
+import DeliveryContacts from "./DeliveryContacts";
 
 export default function DeliveryRequestCard({ item }: { item: Row }) {
   const job = riderJob(item), id = text(item.id);
@@ -50,9 +27,6 @@ export default function DeliveryRequestCard({ item }: { item: Row }) {
       lock.current = false; setBusy(false);
     }
   }
-  const customer = record(item.customer ?? item.user), receiver = record(item.receiver ?? item.recipient);
-  const pickupPhone = text(item.pickup_contact) || text(item.pickup_phone) || text(item.sender_phone) || text(customer.phone) || text(customer.phone_number);
-  const dropoffPhone = text(item.dropoff_contact) || text(item.receiver_phone) || text(item.recipient_phone) || text(receiver.phone) || text(receiver.phone_number);
   const reference = text(item.delivery_number) || text(item.reference);
   const payment = text(item.payment_method).replace(/_/g, " ");
   return <article className={styles.request}>
@@ -67,10 +41,7 @@ export default function DeliveryRequestCard({ item }: { item: Row }) {
       <div className={styles.stop}><span className={styles.pickupDot} aria-hidden="true" /><div><span className={styles.label}>Pickup</span><p>{text(item.pickup_address, "Address unavailable")}</p></div></div>
       <div className={styles.stop}><span className={styles.destinationDot} aria-hidden="true" /><div><span className={styles.label}>Destination</span><p>{text(item.dropoff_address, "Address unavailable")}</p></div></div>
     </div>
-    <div className={styles.contacts}>
-      <Contact label="Pickup contact" name={text(item.pickup_contact_name) || text(item.sender_name) || profileName(customer) || text(item.customer_name)} phone={pickupPhone} />
-      <Contact label="Drop-off contact" name={text(item.receiver_name) || text(item.recipient_name) || profileName(receiver)} phone={dropoffPhone} />
-    </div>
+    <DeliveryContacts delivery={item} />
     <div className={styles.footer}>
       <div className={styles.details}>
         {payment ? <span>Payment: <strong>{payment}</strong></span> : null}

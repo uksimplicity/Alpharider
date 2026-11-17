@@ -5,6 +5,7 @@ import RiderShell, { Message, Pager, riderStyles as styles } from "@/app/compone
 import { useBackend, useStoredQuery } from "@/lib/hooks/use-backend";
 import { rows, text, date } from "@/lib/backend-data";
 import { riderJob } from "@/lib/rider-job";
+import DeliveryContacts from "@/app/components/DeliveryContacts";
 
 export default function RiderDeliveriesPage() {
   const scheduled = useStoredQuery("scheduled");
@@ -23,7 +24,7 @@ export default function RiderDeliveriesPage() {
     </div>
     <Message error={error} /><section className={styles.card}>{resource.loading ? <p>Loading jobs…</p> : visible.length ? visible.map(item => {
       const job = riderJob(item), id = text(item.id ?? item.delivery_id);
-      return <article className={styles.message} key={id}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status}</span>{job.scheduledFor ? <p>Scheduled pickup: {date(new Date(job.scheduledFor).toISOString())}</p> : null}<p>{text(item.pickup_address)} → {text(item.dropoff_address)}</p><p>{date(item.created_at)}</p><Link href={`/delivery/request?id=${encodeURIComponent(id)}`}>View job</Link></article>;
+      return <article className={styles.message} key={id}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status}</span>{job.scheduledFor ? <p>Scheduled pickup: {date(new Date(job.scheduledFor).toISOString())}</p> : null}<p>{text(item.pickup_address)} → {text(item.dropoff_address)}</p><p>{date(item.created_at)}</p><DeliveryContacts delivery={item} /><div className={styles.actions}><Link className={styles.link} href={`/delivery/request?id=${encodeURIComponent(id)}`}>View job</Link>{job.status !== "requested" ? <Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link> : null}</div></article>;
     }) : !error ? <p>{list.length ? "No jobs on this page match your filters." : "No jobs found."}</p> : null}<Pager offset={offset} count={list.length} onPage={setOffset} /></section>
   </RiderShell>;
 }

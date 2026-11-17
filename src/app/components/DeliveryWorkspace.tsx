@@ -9,6 +9,7 @@ import { loadRiderDelivery, performJobAction, reconcileJob, type JobReceipt } fr
 import { riderAccess, riderApprovalMessage, riderProfileMissing } from "@/lib/rider-access";
 import DeliveryReviewError from "./DeliveryReviewError";
 import RequestDecisionButtons from "./RequestDecisionButtons";
+import DeliveryContacts from "./DeliveryContacts";
 
 export default function DeliveryWorkspace() {
   const id = useStoredQuery("id", "alpharider_active_delivery_id");
@@ -18,7 +19,7 @@ export default function DeliveryWorkspace() {
   const resource = useBackend(id || null, 20000, loadRiderDelivery);
   const rider = useBackend("/rider/profile", 30000);
   const approval = rider.data ? riderAccess(rider.data).approval : riderProfileMissing(rider.errorStatus, rider.error) ? "missing" : "unknown";
-  const root = unwrap(resource.data), delivery = record(root.delivery ?? root), job = riderJob(delivery), customer = record(delivery.customer ?? delivery.user);
+  const root = unwrap(resource.data), delivery = record(root.delivery ?? root), job = riderJob(delivery);
   useEffect(() => {
     let active = true;
     if (resource.data && id) {
@@ -39,17 +40,18 @@ export default function DeliveryWorkspace() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "The action could not be confirmed."); }
     finally { lock.current = false; setBusy(false); setReceipt(null); resource.refresh(); }
   };
-  const phone = text(delivery.pickup_contact ?? customer.phone), escrow = record(delivery.escrow);
+  const escrow = record(delivery.escrow);
   const activeDeliveryId = !needsAcceptance && !job.terminal && ["assigned", "picking_up", "on_the_way", "delivered"].includes(job.status) ? id : undefined;
   return <RiderShell activeDeliveryId={activeDeliveryId}><h1>{job.kind === "passenger" ? "Ride details" : "Delivery details"}</h1>
     {!id ? <section className={styles.card}><p>Select a job to view its details.</p><Link href="/rider/deliveries">My jobs</Link></section> : resource.error ? <DeliveryReviewError id={id} error={resource.error} status={resource.errorStatus} retry={resource.refresh} className={styles.card} /> : !resource.data ? <p>Loading job…</p> : <>
       <section className={styles.card}><span className={styles.badge}>{job.sourceLabel} · {job.kindLabel} · {job.status || "Status unavailable"}</span><h2>{text(delivery.delivery_number) || text(delivery.reference) || text(delivery.id) || id}</h2>
         {needsAcceptance ? <p className={styles.muted}>Review the available request information below. Full delivery details become available after you accept.</p> : null}
-        <p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Customer:</strong> {text(customer.name ?? delivery.customer_name, "Not provided")}</p>{job.kind !== "passenger" ? <p><strong>Receiver:</strong> {text(delivery.receiver_name, "Not provided")}</p> : null}<p><strong>Created:</strong> {date(delivery.created_at)}</p>
+        <p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Created:</strong> {date(delivery.created_at)}</p>
+        <DeliveryContacts delivery={delivery} />
         {job.scheduledFor ? <p><strong>Scheduled pickup:</strong> {date(new Date(job.scheduledFor).toISOString())}</p> : null}{job.expiresAt ? <p><strong>Request expires:</strong> {date(new Date(job.expiresAt).toISOString())}</p> : null}
         <p><strong>Fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p><p><strong>Payment method:</strong> {text(delivery.payment_method, "Not reported")}</p><p><strong>Payment status:</strong> {text(delivery.payment_status ?? delivery.paymentStatus, "Not reported")}</p><p><strong>Escrow:</strong> {text(delivery.escrow_status ?? delivery.escrowStatus ?? escrow.status, "Not reported")}</p>
         {job.source === "marketplace" ? <p className={styles.muted}>Delivery completion does not confirm that escrow funds are available to withdraw. Check Wallet & payouts for your available balance.</p> : null}
-        {delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}>{/^\+?[\d\s()-]{7,}$/.test(phone) ? <a className={styles.link} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>Call customer</a> : null}{!needsAcceptance ? <Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link> : null}<button disabled={busy} onClick={resource.refresh}>Refresh job</button></div>
+        {delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}>{!needsAcceptance ? <Link className={styles.link} href={`/delivery/chat?id=${encodeURIComponent(id)}`}>Message customer</Link> : null}<button disabled={busy} onClick={resource.refresh}>Refresh job</button></div>
       </section>
       <section className={styles.card}><h2>Job actions</h2><Message error={error || saved?.error || ""} />
         {rider.loading ? <p>Checking rider approval…</p> : approval !== "approved" ? <p role="status">{riderApprovalMessage(approval)} <Link href="/rider#rider-registration">View rider registration</Link></p> : null}
