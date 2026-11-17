@@ -1,2 +1,2 @@
-import { redirect } from "next/navigation";
-export default function RiderMessagesPage() { redirect("/dashboard"); }
+import MessagesWorkspace from "@/app/components/MessagesWorkspace";
+export default function RiderMessagesPage() { return <MessagesWorkspace />; }
