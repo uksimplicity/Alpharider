@@ -34,15 +34,17 @@ export function useBackend(path: string | null, poll = 0, loadResource: (path: s
 export function useWrite() {
   const lock = useRef(false), uncertainRef = useRef(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [uncertain, setUncertain] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<number | undefined>();
   const run = async (work: () => Promise<void>) => {
     if (lock.current || uncertainRef.current) return;
-    lock.current = true; setBusy(true); setError("");
+    lock.current = true; setBusy(true); setError(""); setErrorStatus(undefined);
     try { await work(); }
     catch (cause) {
       const unknown = !(cause instanceof ApiError) || cause.status >= 500;
       if (unknown) { uncertainRef.current = true; setUncertain(true); }
       setError(cause instanceof Error ? cause.message : "The request failed.");
+      setErrorStatus(cause instanceof ApiError ? cause.status : undefined);
     } finally { lock.current = false; setBusy(false); }
   };
-  return { run, busy, error, uncertain };
+  return { run, busy, error, errorStatus, uncertain };
 }
