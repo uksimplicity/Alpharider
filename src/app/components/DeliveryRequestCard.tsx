@@ -27,7 +27,6 @@ export default function DeliveryRequestCard({ item }: { item: Row }) {
     }
   }
   const reference = text(item.delivery_number) || text(item.reference);
-  const payment = text(item.payment_method).replace(/_/g, " ");
   return <article className={styles.request}>
     <div className={styles.top}>
       <div><div className={styles.badges}><span className={styles.source}>{job.sourceLabel}</span><span className={styles.kind}>{job.kindLabel}</span></div>
@@ -42,10 +41,9 @@ export default function DeliveryRequestCard({ item }: { item: Row }) {
     </div>
     <div className={styles.footer}>
       <div className={styles.details}>
-        {payment ? <span>Payment: <strong>{payment}</strong></span> : null}
         {text(item.created_at) ? <span>Requested {date(item.created_at)}</span> : null}
         {job.expiresAt ? <span className={styles.expiry}>Expires {date(new Date(job.expiresAt).toISOString())}</span> : null}
-        {!payment && !text(item.created_at) && !job.expiresAt ? <span>View full details before accepting</span> : null}
+        {!text(item.created_at) && !job.expiresAt ? <span>View full details before accepting</span> : null}
       </div>
       <div className={styles.requestActions}>
         <Link className={styles.review} href={`/delivery/request?id=${encodeURIComponent(id)}`}>Review request <span aria-hidden="true">→</span></Link>

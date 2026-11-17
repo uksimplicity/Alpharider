@@ -40,7 +40,6 @@ export default function DeliveryWorkspace() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "The action could not be confirmed."); }
     finally { lock.current = false; setBusy(false); setReceipt(null); resource.refresh(); }
   };
-  const escrow = record(delivery.escrow);
   const activeDeliveryId = !needsAcceptance && !job.terminal && ["assigned", "picking_up", "on_the_way", "delivered"].includes(job.status) ? id : undefined;
   return <RiderShell activeDeliveryId={activeDeliveryId}><h1>{job.kind === "passenger" ? "Ride details" : "Delivery details"}</h1>
     {!id ? <section className={styles.card}><p>Select a job to view its details.</p><Link href="/rider/deliveries">My jobs</Link></section> : resource.error ? <DeliveryReviewError id={id} error={resource.error} status={resource.errorStatus} retry={resource.refresh} className={styles.card} /> : !resource.data ? <p>Loading job…</p> : <>
@@ -49,8 +48,7 @@ export default function DeliveryWorkspace() {
         <p><strong>Pickup:</strong> {text(delivery.pickup_address, "Unavailable")}</p><p><strong>Destination:</strong> {text(delivery.dropoff_address, "Unavailable")}</p><p><strong>Created:</strong> {date(delivery.created_at)}</p>
         <DeliveryContacts delivery={delivery} accepted={accepted} />
         {job.scheduledFor ? <p><strong>Scheduled pickup:</strong> {date(new Date(job.scheduledFor).toISOString())}</p> : null}{job.expiresAt ? <p><strong>Request expires:</strong> {date(new Date(job.expiresAt).toISOString())}</p> : null}
-        <p><strong>Fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p><p><strong>Payment method:</strong> {text(delivery.payment_method, "Not reported")}</p><p><strong>Payment status:</strong> {text(delivery.payment_status ?? delivery.paymentStatus, "Not reported")}</p><p><strong>Escrow:</strong> {text(delivery.escrow_status ?? delivery.escrowStatus ?? escrow.status, "Not reported")}</p>
-        {job.source === "marketplace" ? <p className={styles.muted}>Delivery completion does not confirm that escrow funds are available to withdraw. Check Wallet & payouts for your available balance.</p> : null}
+        <p><strong>Fee:</strong> {money(delivery.delivery_fee ?? delivery.fee ?? delivery.amount)}</p>
         {delivery.notes ? <p>{text(delivery.notes)}</p> : null}<div className={styles.actions}><button disabled={busy} onClick={resource.refresh}>Refresh job</button></div>
       </section>
       <section className={styles.card}><h2>Job actions</h2><Message error={error || saved?.error || ""} />
