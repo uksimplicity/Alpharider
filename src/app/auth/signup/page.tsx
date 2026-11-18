@@ -52,7 +52,7 @@ export default function SignupPage() {
         firstName,
         lastName,
         email: email.trim(),
-        phone,
+        phone: phone.trim(),
         password,
         role,
       });
@@ -123,6 +123,8 @@ export default function SignupPage() {
             <div className="input-group">
               <input
                 type="tel"
+                required
+                autoComplete="tel"
                 placeholder="Phone Number"
                 value={phone}
                 onChange={(event) =>
