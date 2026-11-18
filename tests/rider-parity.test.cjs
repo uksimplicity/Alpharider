@@ -135,6 +135,22 @@ test('a successful acceptance survives reopening without a second POST even when
   await reopened.performJobAction('job1', 'accept'); assert.equal(writes.length, 1);
   await reopened.performJobAction('job1', 'picking_up'); assert.equal(job.status, 'picking_up');
 });
+test('package delivery progresses from acceptance through completion in order', async () => {
+  await actions.performJobAction('job1', 'accept');
+  for (const status of ['picking_up', 'on_the_way', 'delivered']) {
+    await actions.performJobAction('job1', status);
+    assert.equal(job.status, status);
+  }
+  await actions.performJobAction('job1', 'completed', '001234');
+  assert.equal(job.status, 'completed');
+  assert.deepEqual(writes.map(write => [write.path.split('/').pop(), write.body]), [
+    ['accept', null],
+    ['status', { status: 'picking_up' }],
+    ['status', { status: 'on_the_way' }],
+    ['status', { status: 'delivered' }],
+    ['status', { status: 'completed', completed_code: '001234' }],
+  ]);
+});
 test('a lost acceptance response remains blocked after reopening until server acceptance can be confirmed', async () => {
   fail = 502; await assert.rejects(actions.performJobAction('job1', 'accept'), /Write failed/);
   delete require.cache[actionsPath]; const reopened = require(actionsPath); fail = 0;
