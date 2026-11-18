@@ -15,7 +15,7 @@ function Contact({ label, name, phone }: { label: string; name: string; phone: s
   }
   return <div className={styles.contact}>
     <span className={styles.label}>{label}</span>
-    <span className={name ? styles.contactName : styles.unavailable}>{name || "Name not provided"}</span>
+    <span className={name ? styles.contactName : styles.unavailable}>{name.trim().split(/\s+/)[0] || "Name not provided"}</span>
     {phone ? <div className={styles.phoneRow}>
       {callable ? <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a> : <span>{phone}</span>}
       {callable ? <a className={styles.call} href={`tel:${phone.replace(/[^\d+]/g, "")}`} aria-label={`Call ${label.toLowerCase()} at ${phone}`} title={`Call ${phone}`}>

@@ -45,8 +45,8 @@ export function deliveryContacts(raw: Row) {
   const pickup = raw.pickup_contact ?? raw.pickupContact ?? raw.PickupContact;
   const dropoff = raw.dropoff_contact ?? raw.dropoffContact ?? raw.DropoffContact;
   const marketplace = riderJob(raw).source === "marketplace";
-  const sellerNames = [raw, ...orderRows].flatMap(row => [row.seller_name, row.sellerName, row.SellerName]);
-  const buyerNames = [raw, ...orderRows].flatMap(row => [row.buyer_name, row.buyerName, row.BuyerName]);
+  const sellerNames = [raw, ...orderRows].flatMap(row => [row.seller_first_name, row.sellerFirstName, row.SellerFirstName, row.seller_name, row.sellerName, row.SellerName]);
+  const buyerNames = [raw, ...orderRows].flatMap(row => [row.buyer_first_name, row.buyerFirstName, row.BuyerFirstName, row.buyer_name, row.buyerName, row.BuyerName]);
   const customerName = first(...customers.map(name), raw.customer_name, raw.customerName, raw.CustomerName);
   return {
     pickup: {
