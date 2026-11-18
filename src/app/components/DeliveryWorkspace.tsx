@@ -11,6 +11,7 @@ import DeliveryReviewError from "./DeliveryReviewError";
 import RequestDecisionButtons from "./RequestDecisionButtons";
 import DeliveryContacts from "./DeliveryContacts";
 import progressStyles from "./delivery-workspace.module.css";
+import DeliverySettlement from "./DeliverySettlement";
 
 export default function DeliveryWorkspace() {
   const id = useStoredQuery("id", "alpharider_active_delivery_id");
@@ -63,6 +64,7 @@ export default function DeliveryWorkspace() {
         <div className={progressStyles.progressHeader}><h3>Journey progress</h3><span>{stopped ? `Job ${job.status}` : stepIndex >= 0 ? `Step ${stepIndex + 1} of ${steps.length}` : needsAcceptance ? "Awaiting acceptance" : "Status unavailable"}</span></div>
         <ol className={progressStyles.steps}>{steps.map((step, index) => { const state = stopped || stepIndex < 0 ? "upcoming" : index < stepIndex || job.status === "completed" ? "done" : index === stepIndex ? "current" : "upcoming"; const isNext = !needsAcceptance && next === step.key && state === "upcoming"; const content = <><span className={progressStyles.marker} aria-hidden="true">{state === "done" ? "✓" : index + 1}</span><div><strong>{step.label}</strong><p>{step.description}</p><span className={progressStyles.stepState}>{state === "done" ? "Done" : state === "current" ? "Current" : isNext ? "Next step" : "Upcoming"}</span>{isNext ? <span className={progressStyles.stepHint}>{next === "completed" && job.requiresCode && !code.trim() ? "Enter the completion code above" : `Select to ${job.actionLabel(next).toLowerCase()} →`}</span> : null}</div></>; return <li key={step.key} className={progressStyles.step} data-state={state} data-next={isNext || undefined} aria-current={state === "current" ? "step" : undefined}>{isNext ? <button type="button" className={progressStyles.stepButton} disabled={blocked || (next === "completed" && job.requiresCode && !code.trim())} onClick={() => void act(next)} aria-label={job.actionLabel(next)}>{content}</button> : content}</li>; })}</ol>
       </section>
+      {job.status === "completed" && !passenger ? <DeliverySettlement id={id} fee={delivery.delivery_fee ?? delivery.fee ?? delivery.amount} /> : null}
       <section className={styles.card}><div className={progressStyles.detailsHeading}><div><span className={progressStyles.eyebrow}>YOUR ROUTE</span><h2>Delivery details</h2></div><Link href="/rider/deliveries">Back to my jobs</Link></div>
         <div className={progressStyles.route}><div><span>Pickup</span><strong>{text(delivery.pickup_address, "Unavailable")}</strong></div><div><span>Destination</span><strong>{text(delivery.dropoff_address, "Unavailable")}</strong></div></div>
         <DeliveryContacts delivery={delivery} accepted={accepted} />
