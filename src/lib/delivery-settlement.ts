@@ -5,6 +5,11 @@ export function deliveryWalletCredits(payload: unknown, deliveryId: string) {
   return rows(payload).filter(row => text(row.delivery_id ?? row.reference_id) === deliveryId && text(row.type ?? row.transaction_type).toLowerCase() === "credit");
 }
 
+export function deliveryEarnings(payload: unknown, deliveryId: string) {
+  if (!deliveryId) return [];
+  return rows(payload).filter(row => text(row.delivery_id ?? row.deliveryId) === deliveryId);
+}
+
 // Convert currency values to kobo without floating-point rounding or guessing.
 function kobo(value: unknown): number | null {
   if (typeof value !== "string" && typeof value !== "number") return null;

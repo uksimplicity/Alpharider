@@ -22,7 +22,7 @@ export default function DeliverySettlement({ id, fee }: { id: string; fee: unkno
   const refresh = () => { commission.refresh(); history.refresh(); balance.refresh(); };
   return <section className={styles.card} aria-label="Delivery payment">
     <h2>Delivery payment</h2>
-    <p className={styles.muted}>Your wallet is credited by the delivery service after completion. Check the records below for this delivery.</p>
+    <p className={styles.muted}>Completion and wallet payment are separate. Check the records below for this delivery.</p>
     <div className={styles.grid}><p>Delivery fee: <strong>{money(fee)}</strong></p><p>Platform commission: <strong>{commission.loading ? "Checking…" : money(commissionAmount)}</strong></p><p>Wallet balance: <strong>{balance.loading ? "Checking…" : money(amount(balance.data))}</strong></p></div>
     {expected !== null ? <p>Expected credit after commission: <strong>{money(expected)}</strong>. Check the wallet transaction to confirm the amount received.</p> : null}
     {commission.error ? <p role="status">The commission for this delivery could not be loaded.</p> : null}

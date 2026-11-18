@@ -3,7 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, filename);
-const { deliveryWalletCredits, expectedDeliveryCredit } = require('../src/lib/delivery-settlement.ts');
+const { deliveryEarnings, deliveryWalletCredits, expectedDeliveryCredit } = require('../src/lib/delivery-settlement.ts');
+
+test('earnings match only the actual delivery reference, not the earning record ID', () => {
+  const data = { data: { earnings: [{ id: 'earning-1', delivery_id: 'job-1', earning_amount: '444.53', status: 'unpaid' }, { id: 'job-1', delivery_id: 'other' }] } };
+  assert.deepEqual(deliveryEarnings(data, 'job-1').map(row => row.id), ['earning-1']);
+  assert.deepEqual(deliveryEarnings(data, 'earning-1'), []);
+});
 
 test('delivery fee less commission is calculated exactly in kobo', () => {
   assert.equal(expectedDeliveryCredit('4500.05', '746.28'), 3753.77);
