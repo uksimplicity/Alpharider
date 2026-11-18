@@ -23,6 +23,8 @@ export default function RiderPage() {
   const registered = Boolean(rider.data) || Boolean(success);
   const submit = () => {
     if (registered || rider.loading || !missing || !["Bike", "Car", "Van"].includes(vehicleType) || !vehicleNumber.trim()) return;
+    if (!vehicleModel.trim()) { setValidationError("Enter a vehicle model."); return; }
+    if (!documents.length && !existingDocuments.length) { setValidationError("Upload at least one document."); return; }
     const invalid = documents.map(documentError).find(Boolean);
     if (invalid) { setValidationError(invalid); return; }
     setValidationError(""); setSuccess("");
@@ -31,7 +33,7 @@ export default function RiderPage() {
       const urls = await uploadRiderDocuments(documents, token, uploadCache.current);
       checkSession(token);
       const allDocuments = [...new Set([...existingDocuments, ...urls])];
-      await accountRequest("/rider/kyc", { method: "POST", body: JSON.stringify({ vehicle_type: vehicleType.trim(), vehicle_number: vehicleNumber.trim(), ...(vehicleModel.trim() ? { vehicle_model: vehicleModel.trim() } : {}), ...(allDocuments.length ? { documents: allDocuments } : {}) }) });
+      await accountRequest("/rider/kyc", { method: "POST", body: JSON.stringify({ vehicle_type: vehicleType.trim(), vehicle_number: vehicleNumber.trim(), vehicle_model: vehicleModel.trim(), documents: allDocuments }) });
       setSuccess("Rider registration submitted. Await admin approval before going online or taking jobs."); setDocuments([]); uploadCache.current.clear(); rider.refresh();
       window.dispatchEvent(new Event("alpharider:registration"));
     });
@@ -51,15 +53,15 @@ export default function RiderPage() {
       {registered ? <p>Your rider registration has already been submitted.</p> : missing ? <form className={styles.form} onSubmit={event => { event.preventDefault(); submit(); }}>
         <label>Vehicle type<select required disabled={save.busy} value={vehicleType} onChange={event => setVehicleType(event.target.value)}><option value="">Choose vehicle type</option>{["Bike", "Car", "Van"].map(value => <option key={value}>{value}</option>)}</select></label>
         <label>Plate number<input required disabled={save.busy} value={vehicleNumber} onChange={event => setVehicleNumber(event.target.value)} /></label>
-        <label>Vehicle model (optional)<input disabled={save.busy} value={vehicleModel} onChange={event => setVehicleModel(event.target.value)} /></label>
-        <label>Upload documents (optional)<input type="file" multiple accept="image/*,application/pdf,.pdf" disabled={save.busy || save.uncertain} onChange={event => {
+        <label>Vehicle model<input required disabled={save.busy} value={vehicleModel} onChange={event => setVehicleModel(event.target.value)} /></label>
+        <label>Upload documents (required)<input type="file" multiple accept="image/*,application/pdf,.pdf" disabled={save.busy || save.uncertain} onChange={event => {
           const files = Array.from(event.target.files ?? []), error = files.map(documentError).find(Boolean);
           event.target.value = "";
           if (error) { setValidationError(error); return; }
           setValidationError("");
           setDocuments(previous => [...previous, ...files.filter(file => !previous.some(old => old.name === file.name && old.size === file.size && old.lastModified === file.lastModified))]);
         }} /></label>
-        <small>PDF or image files, up to 3 MB each.</small>
+        <small>Upload at least one PDF or image file, up to 3 MB each.</small>
         {documents.map((file, index) => <div className={styles.actions} key={`${file.name}:${index}`}><span>{file.name}</span><button type="button" disabled={save.busy || save.uncertain} aria-label={`Remove ${file.name}`} onClick={() => { uploadCache.current.delete(file); setDocuments(previous => previous.filter(item => item !== file)); }}>Remove</button></div>)}
         <button className={styles.primary} disabled={save.busy || save.uncertain}>{save.busy ? "Uploading & submitting…" : "Submit rider registration"}</button>
         <Message error={validationError || save.error} uncertain={save.uncertain} />

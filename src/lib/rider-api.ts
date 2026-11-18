@@ -4,8 +4,8 @@ import { API_ENDPOINTS } from "./endpoints";
 export type RegisterRiderPayload = {
   vehicle_type: string;
   vehicle_number: string;
-  vehicle_model?: string;
-  documents?: string[];
+  vehicle_model: string;
+  documents: string[];
 };
 
 const withAuthHeaders = (token: string) => ({

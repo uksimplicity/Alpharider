@@ -109,7 +109,9 @@ async function main() {
     assert.equal(await evaluate(`document.body.innerText.includes('Latitude')||document.body.innerText.includes('Longitude')||document.body.innerText.includes('Document URLs')`),false);
     assert.equal(await evaluate('Boolean(document.querySelector("input[type=file]"))'),false);
     await evaluate('__riderMissing=true'); await click('Refresh profile'); await wait('Boolean(document.querySelector("input[type=file]"))');
-    await input('Vehicle type','Van'); await input('Plate number','DEF456');
+    await input('Vehicle type','Van'); await input('Plate number','DEF456'); await input('Vehicle model','Transit');
+    await click('Submit rider registration'); await wait(`document.body.innerText.includes('Upload at least one document.')`);
+    assert.equal(await evaluate(`__writes.filter(w=>w.path==='/rider/kyc').length`),0);
     await evaluate(`(()=>{const el=document.querySelector('input[type="file"]'),files=new DataTransfer();files.items.add(new File(['pdf'],'license.pdf',{type:'application/pdf'}));files.items.add(new File(['photo'],'vehicle.png',{type:'image/png'}));el.files=files.files;el.dispatchEvent(new Event('change',{bubbles:true}));})()`);
     await wait(`document.body.innerText.includes('license.pdf')&&document.body.innerText.includes('vehicle.png')`);
     await evaluate(`document.querySelector('[aria-label="Remove vehicle.png"]').click()`);
@@ -118,6 +120,7 @@ async function main() {
     assert.equal(await evaluate(`Boolean(document.querySelector('[role="switch"]'))||[...document.querySelectorAll('button')].some(b=>b.textContent==='Set online')`),false);
     assert.deepEqual(await evaluate(`__uploads`),[{name:'license.pdf',folder:'rider-documents'}]);
     assert.deepEqual(await evaluate(`__writes.find(w=>w.path==='/rider/kyc').body.documents`),['https://files.example.test/license.pdf']);
+    assert.equal(await evaluate(`__writes.find(w=>w.path==='/rider/kyc').body.vehicle_model`),'Transit');
     console.log('PASS personal profile and rider vehicle details load independently');
     await navigate('/user/edit-profile'); await wait(`document.querySelector('input[type="email"]')?.value==='ada@example.test'`);
     await input('First Name','Updated Ada'); await click('Save Changes'); await wait(`document.body.innerText.includes('Profile updated successfully')`);
